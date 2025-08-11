@@ -3,22 +3,54 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { seedDatabase } from "@/lib/database";
+import { authService } from "@/lib/auth";
 import Layout from "@/components/Layout";
+import Login from "./pages/Login";
 import PDV from "./pages/PDV";
 import Estoque from "./pages/Estoque";
 import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
+import Credores from "./pages/Credores";
+import Clientes from "./pages/Clientes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   useEffect(() => {
     // Initialize database with seed data
     seedDatabase();
+    
+    // Check if user is already logged in
+    if (authService.isAuthenticated()) {
+      setIsAuthenticated(true);
+    }
   }, []);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Login onLogin={handleLogin} />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -26,11 +58,13 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Layout>
+          <Layout onLogout={handleLogout}>
             <Routes>
               <Route path="/" element={<PDV />} />
               <Route path="/estoque" element={<Estoque />} />
               <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/credores" element={<Credores />} />
+              <Route path="/clientes" element={<Clientes />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

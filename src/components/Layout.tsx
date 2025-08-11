@@ -1,27 +1,35 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { authService } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
 import { 
   ShoppingCart, 
   Package, 
   BarChart3, 
   Settings,
-  Store
+  Store,
+  Users,
+  LogOut
 } from 'lucide-react';
 
 interface LayoutProps {
   children: ReactNode;
+  onLogout: () => void;
 }
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = ({ children, onLogout }: LayoutProps) => {
   const location = useLocation();
+  const currentUser = authService.getCurrentUser();
 
   const navigation = [
-    { name: 'PDV', href: '/', icon: ShoppingCart },
-    { name: 'Estoque', href: '/estoque', icon: Package },
-    { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
-    { name: 'Configurações', href: '/configuracoes', icon: Settings },
-  ];
+    { name: 'PDV', href: '/', icon: ShoppingCart, permission: 'vendas' },
+    { name: 'Estoque', href: '/estoque', icon: Package, permission: 'estoque' },
+    { name: 'Relatórios', href: '/relatorios', icon: BarChart3, permission: 'relatorios' },
+    { name: 'Clientes', href: '/clientes', icon: Users, permission: 'configuracoes' },
+    { name: 'Credores', href: '/credores', icon: Users, permission: 'configuracoes' },
+    { name: 'Configurações', href: '/configuracoes', icon: Settings, permission: 'configuracoes' },
+  ].filter(item => authService.hasPermission(item.permission as any));
 
   return (
     <div className="min-h-screen bg-background">
@@ -36,8 +44,20 @@ const Layout = ({ children }: LayoutProps) => {
               </h1>
             </div>
           </div>
-          <div className="text-sm text-muted-foreground">
-            Sistema de Vendas & Estoque
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-muted-foreground">
+              Usuário: <span className="font-medium">{currentUser?.username}</span>
+              {currentUser?.role === 'admin' && <span className="text-primary"> (Admin)</span>}
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onLogout}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sair
+            </Button>
           </div>
         </div>
       </header>

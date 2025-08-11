@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
-import { db, Product, Sale, SaleItem, StockMovement } from '@/lib/database';
+import { db, Product, Sale, SaleItem, StockMovement, Customer } from '@/lib/database';
+import { authService } from '@/lib/auth';
+import { formatCurrency } from '@/lib/formatters';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { 
   Search, 
   Plus, 
@@ -14,7 +18,8 @@ import {
   ShoppingBag,
   CreditCard,
   Banknote,
-  Smartphone
+  Smartphone,
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,12 +31,25 @@ const PDV = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'dinheiro' | 'cartao' | 'pix'>('dinheiro');
+  const [paymentMethod, setPaymentMethod] = useState<'dinheiro' | 'cartao' | 'pix' | 'crediario'>('dinheiro');
   const [discount, setDiscount] = useState(0);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
+  const [installments, setInstallments] = useState(1);
 
   useEffect(() => {
     loadProducts();
+    loadCustomers();
   }, []);
+
+  const loadCustomers = async () => {
+    try {
+      const allCustomers = await db.customers.toArray();
+      setCustomers(allCustomers);
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+    }
+  };
 
   const loadProducts = async () => {
     try {
@@ -133,7 +151,26 @@ const PDV = () => {
       return;
     }
 
+    if (paymentMethod === 'crediario' && !selectedCustomer) {
+      toast({
+        title: "Cliente obrigatório",
+        description: "Selecione um cliente para vendas no crediário.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Usuário não autenticado.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Create sale record
       const sale: Omit<Sale, 'id'> = {
         items: cart.map(item => ({
@@ -146,7 +183,11 @@ const PDV = () => {
         total: getCartTotal(),
         paymentMethod,
         discount,
-        createdAt: new Date()
+        createdAt: new Date(),
+        userId: currentUser.id,
+        customerId: selectedCustomer,
+        installments: paymentMethod === 'crediario' ? installments : undefined,
+        installmentValue: paymentMethod === 'crediario' ? getCartTotal() / installments : undefined
       };
 
       const saleId = await db.sales.add(sale);
@@ -174,9 +215,33 @@ const PDV = () => {
         }
       }
 
+      // Se for crediário, criar entrada na agenda de credores
+      if (paymentMethod === 'crediario' && selectedCustomer) {
+        const customer = customers.find(c => c.id === selectedCustomer);
+        if (customer) {
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 30); // Vencimento em 30 dias
+
+          await db.creditors.add({
+            customerId: selectedCustomer,
+            customerName: customer.name,
+            totalDebt: getCartTotal(),
+            paidAmount: 0,
+            remainingAmount: getCartTotal(),
+            dueDate: dueDate,
+            description: `Venda #${saleId} - ${installments}x ${formatCurrency(getCartTotal() / installments)}`,
+            status: 'pendente',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+      }
+
       // Clear cart and reload products
       setCart([]);
       setDiscount(0);
+      setSelectedCustomer(null);
+      setInstallments(1);
       await loadProducts();
 
       toast({
@@ -199,6 +264,7 @@ const PDV = () => {
     { id: 'dinheiro' as const, label: 'Dinheiro', icon: Banknote },
     { id: 'cartao' as const, label: 'Cartão', icon: CreditCard },
     { id: 'pix' as const, label: 'PIX', icon: Smartphone },
+    { id: 'crediario' as const, label: 'Crediário', icon: Calendar },
   ];
 
   return (
@@ -249,7 +315,7 @@ const PDV = () => {
                 <p className="text-xs text-muted-foreground mb-2">{product.category}</p>
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-primary">
-                    R$ {product.price.toFixed(2)}
+                    {formatCurrency(product.price)}
                   </span>
                   {product.stock > 0 && (
                     <Plus className="h-4 w-4 text-muted-foreground" />
@@ -275,7 +341,7 @@ const PDV = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{item.productName}</p>
                     <p className="text-xs text-muted-foreground">
-                      R$ {item.price.toFixed(2)} cada
+                      {formatCurrency(item.price)} cada
                     </p>
                   </div>
                   <div className="flex items-center space-x-1">
@@ -322,7 +388,7 @@ const PDV = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Subtotal:</span>
-                    <span>R$ {cart.reduce((sum, item) => sum + item.total, 0).toFixed(2)}</span>
+                    <span>{formatCurrency(cart.reduce((sum, item) => sum + item.total, 0))}</span>
                   </div>
                   
                   <div className="flex items-center space-x-2">
@@ -340,15 +406,34 @@ const PDV = () => {
                   
                   <Separator />
                   
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>Total:</span>
-                    <span className="text-primary">R$ {getCartTotal().toFixed(2)}</span>
-                  </div>
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total:</span>
+                  <span className="text-primary">{formatCurrency(getCartTotal())}</span>
                 </div>
+                </div>
+
+                {/* Cliente */}
+                {paymentMethod === 'crediario' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customer">Cliente *</Label>
+                    <Select value={selectedCustomer?.toString() || ''} onValueChange={(value) => setSelectedCustomer(Number(value))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id!.toString()}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Forma de pagamento:</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {paymentMethods.map((method) => {
                       const Icon = method.icon;
                       return (
@@ -356,7 +441,13 @@ const PDV = () => {
                           key={method.id}
                           variant={paymentMethod === method.id ? "default" : "outline"}
                           size="sm"
-                          onClick={() => setPaymentMethod(method.id)}
+                          onClick={() => {
+                            setPaymentMethod(method.id);
+                            if (method.id !== 'crediario') {
+                              setSelectedCustomer(null);
+                              setInstallments(1);
+                            }
+                          }}
                           className="flex flex-col items-center p-2 h-auto"
                         >
                           <Icon className="h-4 w-4 mb-1" />
@@ -366,6 +457,25 @@ const PDV = () => {
                     })}
                   </div>
                 </div>
+
+                {/* Parcelamento */}
+                {paymentMethod === 'crediario' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="installments">Parcelas</Label>
+                    <Select value={installments.toString()} onValueChange={(value) => setInstallments(Number(value))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 10, 12].map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num}x de {formatCurrency(getCartTotal() / num)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <Button 
                   onClick={finalizeSale}

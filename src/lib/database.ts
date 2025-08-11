@@ -18,8 +18,56 @@ export interface Sale {
   id?: number;
   items: SaleItem[];
   total: number;
-  paymentMethod: 'dinheiro' | 'cartao' | 'pix';
+  paymentMethod: 'dinheiro' | 'cartao' | 'pix' | 'crediario';
   discount: number;
+  createdAt: Date;
+  customerId?: number;
+  installments?: number;
+  installmentValue?: number;
+  userId: number;
+}
+
+export interface User {
+  id?: number;
+  username: string;
+  password: string;
+  role: 'admin' | 'estagiario';
+  createdAt: Date;
+}
+
+export interface Customer {
+  id?: number;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  cpf?: string;
+  createdAt: Date;
+}
+
+export interface Creditor {
+  id?: number;
+  customerId: number;
+  customerName: string;
+  totalDebt: number;
+  paidAmount: number;
+  remainingAmount: number;
+  dueDate: Date;
+  description: string;
+  status: 'pendente' | 'pago' | 'atrasado';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreditSale {
+  id?: number;
+  saleId: number;
+  creditorId: number;
+  installmentNumber: number;
+  installmentValue: number;
+  dueDate: Date;
+  paidDate?: Date;
+  status: 'pendente' | 'pago' | 'atrasado';
   createdAt: Date;
 }
 
@@ -45,13 +93,21 @@ export class PDVDatabase extends Dexie {
   products!: Table<Product>;
   sales!: Table<Sale>;
   stockMovements!: Table<StockMovement>;
+  users!: Table<User>;
+  customers!: Table<Customer>;
+  creditors!: Table<Creditor>;
+  creditSales!: Table<CreditSale>;
 
   constructor() {
     super('PDVDatabase');
-    this.version(1).stores({
+    this.version(2).stores({
       products: '++id, name, category, barcode, stock, minStock',
-      sales: '++id, createdAt, total',
-      stockMovements: '++id, productId, type, createdAt'
+      sales: '++id, createdAt, total, userId, customerId',
+      stockMovements: '++id, productId, type, createdAt',
+      users: '++id, username, role',
+      customers: '++id, name, phone, cpf',
+      creditors: '++id, customerId, status, dueDate',
+      creditSales: '++id, saleId, creditorId, dueDate, status'
     });
   }
 }
@@ -61,6 +117,26 @@ export const db = new PDVDatabase();
 // Seed initial data
 export const seedDatabase = async () => {
   const productCount = await db.products.count();
+  const userCount = await db.users.count();
+  
+  // Seed users
+  if (userCount === 0) {
+    const initialUsers: Omit<User, 'id'>[] = [
+      {
+        username: 'admin',
+        password: 'admin123', // Em produção, usar hash
+        role: 'admin',
+        createdAt: new Date()
+      },
+      {
+        username: 'estagiario',
+        password: 'estagiario123', // Em produção, usar hash
+        role: 'estagiario',
+        createdAt: new Date()
+      }
+    ];
+    await db.users.bulkAdd(initialUsers);
+  }
   
   if (productCount === 0) {
     const initialProducts: Omit<Product, 'id'>[] = [
