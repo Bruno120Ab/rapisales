@@ -1,0 +1,350 @@
+import { useState, useEffect } from 'react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from '@/hooks/use-toast';
+import { db, Sale, StockMovement } from '@/lib/database';
+import { 
+  BarChart3, 
+  TrendingUp, 
+  ShoppingCart, 
+  DollarSign,
+  Calendar,
+  Download
+} from 'lucide-react';
+
+const Relatorios = () => {
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [period, setPeriod] = useState('today');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, [period]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const allSales = await db.sales.toArray();
+      const allMovements = await db.stockMovements.toArray();
+      
+      const filteredSales = filterByPeriod(allSales);
+      const filteredMovements = filterByPeriod(allMovements);
+      
+      setSales(filteredSales);
+      setStockMovements(filteredMovements);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os relatórios.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterByPeriod = (data: any[]) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    return data.filter(item => {
+      const itemDate = new Date(item.createdAt);
+      switch (period) {
+        case 'today':
+          return itemDate >= today;
+        case 'yesterday':
+          return itemDate >= yesterday && itemDate < today;
+        case 'week':
+          return itemDate >= weekAgo;
+        case 'month':
+          return itemDate >= monthAgo;
+        default:
+          return true;
+      }
+    });
+  };
+
+  const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
+  const totalSales = sales.length;
+  const averageTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
+
+  const salesByPayment = sales.reduce((acc, sale) => {
+    acc[sale.paymentMethod] = (acc[sale.paymentMethod] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const topProducts = sales
+    .flatMap(sale => sale.items)
+    .reduce((acc, item) => {
+      const existing = acc.find(p => p.productName === item.productName);
+      if (existing) {
+        existing.quantity += item.quantity;
+        existing.revenue += item.total;
+      } else {
+        acc.push({
+          productName: item.productName,
+          quantity: item.quantity,
+          revenue: item.total
+        });
+      }
+      return acc;
+    }, [] as Array<{productName: string, quantity: number, revenue: number}>)
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 10);
+
+  const stockMovementsByType = stockMovements.reduce((acc, movement) => {
+    acc[movement.type] = (acc[movement.type] || 0) + movement.quantity;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const exportData = () => {
+    const data = {
+      period,
+      summary: {
+        totalRevenue,
+        totalSales,
+        averageTicket
+      },
+      sales,
+      stockMovements,
+      topProducts
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio-${period}-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Carregando relatórios...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
+        <div className="flex items-center space-x-4">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Hoje</SelectItem>
+              <SelectItem value="yesterday">Ontem</SelectItem>
+              <SelectItem value="week">Última semana</SelectItem>
+              <SelectItem value="month">Último mês</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={exportData}>
+            <Download className="h-4 w-4 mr-2" />
+            Exportar
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-success/10 rounded-lg">
+              <DollarSign className="h-6 w-6 text-success" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Receita Total</p>
+              <p className="text-2xl font-bold text-success">
+                R$ {totalRevenue.toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <ShoppingCart className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total de Vendas</p>
+              <p className="text-2xl font-bold">{totalSales}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-info/10 rounded-lg">
+              <TrendingUp className="h-6 w-6 text-info" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Ticket Médio</p>
+              <p className="text-2xl font-bold">
+                R$ {averageTicket.toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-accent/10 rounded-lg">
+              <BarChart3 className="h-6 w-6 text-accent" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Produtos Vendidos</p>
+              <p className="text-2xl font-bold">
+                {sales.flatMap(s => s.items).reduce((sum, item) => sum + item.quantity, 0)}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Products */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Produtos Mais Vendidos</h3>
+          <div className="space-y-3">
+            {topProducts.map((product, index) => (
+              <div key={product.productName} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <Badge variant="outline">{index + 1}º</Badge>
+                  <div>
+                    <p className="font-medium">{product.productName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {product.quantity} unidades
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium">R$ {product.revenue.toFixed(2)}</p>
+                </div>
+              </div>
+            ))}
+            {topProducts.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhuma venda no período selecionado
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Payment Methods */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Formas de Pagamento</h3>
+          <div className="space-y-3">
+            {Object.entries(salesByPayment).map(([method, count]) => {
+              const percentage = totalSales > 0 ? (count / totalSales * 100).toFixed(1) : '0';
+              const methodLabels = {
+                'dinheiro': 'Dinheiro',
+                'cartao': 'Cartão',
+                'pix': 'PIX'
+              };
+              
+              return (
+                <div key={method} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant="secondary">
+                      {methodLabels[method as keyof typeof methodLabels] || method}
+                    </Badge>
+                    <span className="font-medium">{count} vendas</span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">{percentage}%</span>
+                </div>
+              );
+            })}
+            {Object.keys(salesByPayment).length === 0 && (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhuma venda no período selecionado
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Stock Movements */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Movimentação de Estoque</h3>
+          <div className="space-y-3">
+            {Object.entries(stockMovementsByType).map(([type, quantity]) => {
+              const typeLabels = {
+                'entrada': 'Entradas',
+                'saida': 'Saídas',
+                'ajuste': 'Ajustes'
+              };
+              
+              return (
+                <div key={type} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Badge 
+                      variant={type === 'entrada' ? 'default' : type === 'saida' ? 'destructive' : 'secondary'}
+                    >
+                      {typeLabels[type as keyof typeof typeLabels] || type}
+                    </Badge>
+                  </div>
+                  <span className="font-medium">{quantity} unidades</span>
+                </div>
+              );
+            })}
+            {Object.keys(stockMovementsByType).length === 0 && (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhuma movimentação no período selecionado
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Recent Sales */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Vendas Recentes</h3>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {sales.slice(0, 10).map((sale) => (
+              <div key={sale.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div>
+                  <p className="font-medium">Venda #{sale.id}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(sale.createdAt).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {sale.items.length} {sale.items.length === 1 ? 'item' : 'itens'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium">R$ {sale.total.toFixed(2)}</p>
+                  <Badge variant="outline" className="text-xs">
+                    {sale.paymentMethod}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+            {sales.length === 0 && (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhuma venda no período selecionado
+              </p>
+            )}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default Relatorios;
