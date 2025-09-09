@@ -89,6 +89,42 @@ export interface StockMovement {
   createdAt: Date;
 }
 
+export interface Return {
+  id?: number;
+  saleId: number;
+  items: ReturnItem[];
+  type: 'devolucao' | 'troca';
+  reason: string;
+  totalRefund: number;
+  status: 'pendente' | 'processada' | 'cancelada';
+  createdAt: Date;
+  processedAt?: Date;
+  userId: number;
+  customerId?: number;
+}
+
+export interface ReturnItem {
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  condition: 'nova' | 'usada' | 'danificada';
+}
+
+export interface Exchange {
+  id?: number;
+  originalSaleId: number;
+  newSaleId?: number;
+  returnedItems: ReturnItem[];
+  newItems: SaleItem[];
+  reason: string;
+  status: 'pendente' | 'processada' | 'cancelada';
+  createdAt: Date;
+  processedAt?: Date;
+  userId: number;
+  customerId?: number;
+}
+
 export class PDVDatabase extends Dexie {
   products!: Table<Product>;
   sales!: Table<Sale>;
@@ -97,17 +133,21 @@ export class PDVDatabase extends Dexie {
   customers!: Table<Customer>;
   creditors!: Table<Creditor>;
   creditSales!: Table<CreditSale>;
+  returns!: Table<Return>;
+  exchanges!: Table<Exchange>;
 
   constructor() {
     super('PDVDatabase');
-    this.version(2).stores({
+    this.version(3).stores({
       products: '++id, name, category, barcode, stock, minStock',
       sales: '++id, createdAt, total, userId, customerId',
       stockMovements: '++id, productId, type, createdAt',
       users: '++id, username, role',
       customers: '++id, name, phone, cpf',
       creditors: '++id, customerId, status, dueDate',
-      creditSales: '++id, saleId, creditorId, dueDate, status'
+      creditSales: '++id, saleId, creditorId, dueDate, status',
+      returns: '++id, saleId, type, status, createdAt, userId',
+      exchanges: '++id, originalSaleId, status, createdAt, userId'
     });
   }
 }

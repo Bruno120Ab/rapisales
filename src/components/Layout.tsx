@@ -10,7 +10,8 @@ import {
   Settings,
   Store,
   Users,
-  LogOut
+  LogOut,
+  RotateCcw
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -26,6 +27,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
     { name: 'PDV', href: '/', icon: ShoppingCart, permission: 'vendas' },
     { name: 'Estoque', href: '/estoque', icon: Package, permission: 'estoque' },
     { name: 'Relatórios', href: '/relatorios', icon: BarChart3, permission: 'relatorios' },
+    { name: 'Devoluções', href: '/devolucoes', icon: RotateCcw, permission: 'vendas' },
     { name: 'Clientes', href: '/clientes', icon: Users, permission: 'configuracoes' },
     { name: 'Credores', href: '/credores', icon: Users, permission: 'configuracoes' },
     { name: 'Configurações', href: '/configuracoes', icon: Settings, permission: 'configuracoes' },

@@ -4,37 +4,51 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { db, Sale, StockMovement } from '@/lib/database';
+import { db, Sale, StockMovement, User } from '@/lib/database';
+import { formatCurrency } from '@/lib/formatters';
 import { 
   BarChart3, 
   TrendingUp, 
   ShoppingCart, 
   DollarSign,
   Calendar,
-  Download
+  Download,
+  User as UserIcon
 } from 'lucide-react';
 
 const Relatorios = () => {
   const [sales, setSales] = useState<Sale[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [period, setPeriod] = useState('today');
+  const [selectedUserId, setSelectedUserId] = useState<string>('all');
+  const [selectedProduct, setSelectedProduct] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-  }, [period]);
+  }, [period, selectedUserId]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const allSales = await db.sales.toArray();
-      const allMovements = await db.stockMovements.toArray();
+      const [allSales, allMovements, allUsers] = await Promise.all([
+        db.sales.toArray(),
+        db.stockMovements.toArray(),
+        db.users.toArray()
+      ]);
       
-      const filteredSales = filterByPeriod(allSales);
+      let filteredSales = filterByPeriod(allSales);
       const filteredMovements = filterByPeriod(allMovements);
+      
+      // Filtrar por vendedor
+      if (selectedUserId !== 'all') {
+        filteredSales = filteredSales.filter(sale => sale.userId === parseInt(selectedUserId));
+      }
       
       setSales(filteredSales);
       setStockMovements(filteredMovements);
+      setUsers(allUsers);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast({
@@ -99,6 +113,31 @@ const Relatorios = () => {
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, 10);
 
+  // Análise por vendedor
+  const salesByUser = sales.reduce((acc, sale) => {
+    const user = users.find(u => u.id === sale.userId);
+    const userName = user?.username || 'Desconhecido';
+    
+    if (!acc[userName]) {
+      acc[userName] = {
+        totalSales: 0,
+        totalRevenue: 0,
+        salesCount: 0
+      };
+    }
+    
+    acc[userName].totalSales += 1;
+    acc[userName].totalRevenue += sale.total;
+    acc[userName].salesCount += sale.items.reduce((sum, item) => sum + item.quantity, 0);
+    
+    return acc;
+  }, {} as Record<string, {totalSales: number, totalRevenue: number, salesCount: number}>);
+
+  // Produtos únicos para filtro
+  const uniqueProducts = Array.from(
+    new Set(sales.flatMap(sale => sale.items.map(item => item.productName)))
+  ).sort();
+
   const stockMovementsByType = stockMovements.reduce((acc, movement) => {
     acc[movement.type] = (acc[movement.type] || 0) + movement.quantity;
     return acc;
@@ -155,6 +194,21 @@ const Relatorios = () => {
               <SelectItem value="month">Último mês</SelectItem>
             </SelectContent>
           </Select>
+          
+          <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Todos os vendedores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os vendedores</SelectItem>
+              {users.map(user => (
+                <SelectItem key={user.id} value={user.id!.toString()}>
+                  {user.username}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
           <Button variant="outline" onClick={exportData}>
             <Download className="h-4 w-4 mr-2" />
             Exportar
@@ -172,7 +226,7 @@ const Relatorios = () => {
             <div>
               <p className="text-sm text-muted-foreground">Receita Total</p>
               <p className="text-2xl font-bold text-success">
-                R$ {totalRevenue.toFixed(2)}
+                {formatCurrency(totalRevenue)}
               </p>
             </div>
           </div>
@@ -198,7 +252,7 @@ const Relatorios = () => {
             <div>
               <p className="text-sm text-muted-foreground">Ticket Médio</p>
               <p className="text-2xl font-bold">
-                R$ {averageTicket.toFixed(2)}
+                {formatCurrency(averageTicket)}
               </p>
             </div>
           </div>
@@ -236,7 +290,7 @@ const Relatorios = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">R$ {product.revenue.toFixed(2)}</p>
+                  <p className="font-medium">{formatCurrency(product.revenue)}</p>
                 </div>
               </div>
             ))}
@@ -312,29 +366,66 @@ const Relatorios = () => {
           </div>
         </Card>
 
+        {/* Análise por Vendedor */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Análise por Vendedor</h3>
+          <div className="space-y-3">
+            {Object.entries(salesByUser).map(([userName, data]) => (
+              <div key={userName} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <UserIcon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{userName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {data.totalSales} vendas • {data.salesCount} produtos
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-medium">{formatCurrency(data.totalRevenue)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Média: {formatCurrency(data.totalRevenue / data.totalSales)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {Object.keys(salesByUser).length === 0 && (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhuma venda no período selecionado
+              </p>
+            )}
+          </div>
+        </Card>
+
         {/* Recent Sales */}
         <Card className="p-4">
           <h3 className="text-lg font-semibold mb-4">Vendas Recentes</h3>
           <div className="space-y-3 max-h-80 overflow-y-auto">
-            {sales.slice(0, 10).map((sale) => (
-              <div key={sale.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div>
-                  <p className="font-medium">Venda #{sale.id}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(sale.createdAt).toLocaleString()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {sale.items.length} {sale.items.length === 1 ? 'item' : 'itens'}
-                  </p>
+            {sales.slice(0, 10).map((sale) => {
+              const user = users.find(u => u.id === sale.userId);
+              return (
+                <div key={sale.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div>
+                    <p className="font-medium">Venda #{sale.id}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(sale.createdAt).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {sale.items.length} {sale.items.length === 1 ? 'item' : 'itens'} • 
+                      Vendedor: {user?.username || 'Desconhecido'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{formatCurrency(sale.total)}</p>
+                    <Badge variant="outline" className="text-xs">
+                      {sale.paymentMethod}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-medium">R$ {sale.total.toFixed(2)}</p>
-                  <Badge variant="outline" className="text-xs">
-                    {sale.paymentMethod}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {sales.length === 0 && (
               <p className="text-center text-muted-foreground py-8">
                 Nenhuma venda no período selecionado

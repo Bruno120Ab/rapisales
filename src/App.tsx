@@ -14,6 +14,7 @@ import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
 import Credores from "./pages/Credores";
 import Clientes from "./pages/Clientes";
+import Devolucoes from "./pages/Devolucoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +64,7 @@ const App = () => {
               <Route path="/" element={<PDV />} />
               <Route path="/estoque" element={<Estoque />} />
               <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/devolucoes" element={<Devolucoes />} />
               <Route path="/credores" element={<Credores />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
