@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
 import { db, Creditor, Customer, CarneInstallment, Sale } from '@/lib/database';
 import { formatCurrency, formatDate } from '@/lib/formatters';
@@ -17,6 +20,7 @@ import {
   Search, 
   DollarSign, 
   Calendar,
+  CalendarIcon,
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -39,6 +43,9 @@ const Credores = () => {
   const [showCarneDialog, setShowCarneDialog] = useState(false);
   const [selectedCreditorForCarne, setSelectedCreditorForCarne] = useState<Creditor | null>(null);
   const [installmentsCount, setInstallmentsCount] = useState('');
+  const [showEditDateDialog, setShowEditDateDialog] = useState(false);
+  const [selectedInstallmentForEdit, setSelectedInstallmentForEdit] = useState<CarneInstallment | null>(null);
+  const [newInstallmentDate, setNewInstallmentDate] = useState<Date | undefined>(undefined);
   
   // Form fields
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -231,6 +238,32 @@ const Credores = () => {
       toast({
         title: "Erro",
         description: "Erro ao gerar relatório da venda",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const editInstallmentDate = async (installment: CarneInstallment, newDate: Date) => {
+    try {
+      await db.carneInstallments.update(installment.id!, {
+        dueDate: newDate
+      });
+
+      await loadCarneInstallments();
+      
+      toast({
+        title: "Data alterada!",
+        description: `Data da ${installment.installmentNumber}ª parcela alterada para ${formatDate(newDate)}`
+      });
+
+      setShowEditDateDialog(false);
+      setSelectedInstallmentForEdit(null);
+      setNewInstallmentDate(undefined);
+    } catch (error) {
+      console.error('Erro ao alterar data da parcela:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao alterar data da parcela",
         variant: "destructive"
       });
     }
@@ -679,20 +712,35 @@ const Credores = () => {
                           <br />
                           <span className="text-muted-foreground">{formatDate(installment.dueDate)}</span>
                         </span>
-                        {installment.paid ? (
-                          <Badge variant="secondary" className="text-xs">
-                            Pago {installment.paidAt && `em ${formatDate(installment.paidAt)}`}
-                          </Badge>
-                        ) : (
+                        <div className="flex space-x-1">
+                          {installment.paid ? (
+                            <Badge variant="secondary" className="text-xs">
+                              Pago {installment.paidAt && `em ${formatDate(installment.paidAt)}`}
+                            </Badge>
+                          ) : (
+                            <Button 
+                              onClick={() => markInstallmentAsPaid(installment.id!)}
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-xs"
+                            >
+                              Pagar
+                            </Button>
+                          )}
+                          
                           <Button 
-                            onClick={() => markInstallmentAsPaid(installment.id!)}
+                            onClick={() => {
+                              setSelectedInstallmentForEdit(installment);
+                              setNewInstallmentDate(installment.dueDate);
+                              setShowEditDateDialog(true);
+                            }}
                             size="sm"
                             variant="outline"
                             className="h-6 text-xs"
                           >
-                            Pagar
+                            <CalendarIcon className="h-3 w-3" />
                           </Button>
-                        )}
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -770,6 +818,84 @@ const Credores = () => {
                 className="flex-1"
               >
                 Gerar Carnê
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog para editar data da parcela */}
+      <Dialog open={showEditDateDialog} onOpenChange={setShowEditDateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Data da Parcela</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {selectedInstallmentForEdit && (
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Parcela {selectedInstallmentForEdit.installmentNumber}ª - {formatCurrency(selectedInstallmentForEdit.amount)}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Data atual: {formatDate(selectedInstallmentForEdit.dueDate)}
+                </p>
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label>Nova Data de Vencimento</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !newInstallmentDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {newInstallmentDate ? (
+                      format(newInstallmentDate, "dd/MM/yyyy")
+                    ) : (
+                      <span>Selecione uma data</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={newInstallmentDate}
+                    onSelect={setNewInstallmentDate}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div className="flex space-x-2">
+              <Button 
+                onClick={() => {
+                  setShowEditDateDialog(false);
+                  setSelectedInstallmentForEdit(null);
+                  setNewInstallmentDate(undefined);
+                }} 
+                variant="outline" 
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (selectedInstallmentForEdit && newInstallmentDate) {
+                    editInstallmentDate(selectedInstallmentForEdit, newInstallmentDate);
+                  }
+                }}
+                disabled={!newInstallmentDate}
+                className="flex-1"
+              >
+                Salvar Nova Data
               </Button>
             </div>
           </div>
