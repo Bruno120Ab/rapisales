@@ -337,34 +337,50 @@ const Relatorios = () => {
         {/* Stock Movements */}
         <Card className="p-4">
           <h3 className="text-lg font-semibold mb-4">Movimentação de Estoque</h3>
-          <div className="space-y-3">
-            {Object.entries(stockMovementsByType).map(([type, quantity]) => {
-              const typeLabels = {
-                'entrada': 'Entradas',
-                'saida': 'Saídas',
-                'ajuste': 'Ajustes'
-              };
-              
-              return (
-                <div key={type} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Badge 
-                      variant={type === 'entrada' ? 'default' : type === 'saida' ? 'destructive' : 'secondary'}
-                    >
-                      {typeLabels[type as keyof typeof typeLabels] || type}
-                    </Badge>
+          <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent relative">
+            {stockMovements.length > 0 ? (
+              stockMovements.map((movement) => (
+                <div
+                  key={movement.id}
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{movement.productName}</span>
+                    <span className="text-sm text-muted-foreground"></span>
                   </div>
-                  <span className="font-medium">{quantity} unidades</span>
+                  <div className="flex items-center space-x-3">
+                    <Badge
+                      variant={
+                        movement.type === 'entrada'
+                          ? 'default'
+                          : movement.type === 'saida'
+                          ? 'destructive'
+                          : 'secondary'
+                      }
+                    >
+                      {movement.type === 'entrada'
+                        ? 'Entrada'
+                        : movement.type === 'saida'
+                        ? 'Saída'
+                        : 'Ajuste'}
+                    </Badge>
+                    <span className="font-medium">{movement.quantity} unidades</span>
+                  </div>
                 </div>
-              );
-            })}
-            {Object.keys(stockMovementsByType).length === 0 && (
+              ))
+            ) : (
               <p className="text-center text-muted-foreground py-8">
                 Nenhuma movimentação no período selecionado
               </p>
             )}
+
+            {/* Sombra sutil no final da lista */}
+            {stockMovements.length > 4 && (
+              <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-card to-transparent pointer-events-none"></div>
+            )}
           </div>
         </Card>
+
 
         {/* Análise por Vendedor */}
         <Card className="p-4">

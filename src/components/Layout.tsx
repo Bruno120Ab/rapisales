@@ -30,7 +30,10 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
     { name: 'Devoluções', href: '/devolucoes', icon: RotateCcw, permission: 'vendas' },
     { name: 'Clientes', href: '/clientes', icon: Users, permission: 'configuracoes' },
     { name: 'Credores', href: '/credores', icon: Users, permission: 'configuracoes' },
+    { name: 'Pagar/Receber', href: '/contaspagar', icon: Settings, permission: 'contaspagar' },
     { name: 'Configurações', href: '/configuracoes', icon: Settings, permission: 'configuracoes' },
+
+
   ].filter(item => authService.hasPermission(item.permission as any));
 
   return (
@@ -42,7 +45,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
             <div className="flex items-center space-x-2">
               <Store className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-bold text-foreground">
-                Pet Shop PDV
+                RapiSale
               </h1>
             </div>
           </div>

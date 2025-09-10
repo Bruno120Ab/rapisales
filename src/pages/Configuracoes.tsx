@@ -40,85 +40,174 @@ const Configuracoes = () => {
     }
   };
 
-  const handleExportData = async () => {
-    setLoading(true);
-    try {
-      const products = await db.products.toArray();
-      const sales = await db.sales.toArray();
-      const stockMovements = await db.stockMovements.toArray();
+  // const handleExportData = async () => {
+  //   setLoading(true);
+  //   try {
+  //     const products = await db.products.toArray();
+  //     const sales = await db.sales.toArray();
+  //     const stockMovements = await db.stockMovements.toArray();
       
-      const data = {
-        products,
-        sales,
-        stockMovements,
-        exportedAt: new Date().toISOString()
-      };
+  //     const data = {
+  //       products,
+  //       sales,
+  //       stockMovements,
+  //       exportedAt: new Date().toISOString()
+  //     };
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `backup-pdv-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+  //     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  //     const url = URL.createObjectURL(blob);
+  //     const a = document.createElement('a');
+  //     a.href = url;
+  //     a.download = `backup-pdv-${new Date().toISOString().split('T')[0]}.json`;
+  //     a.click();
+  //     URL.revokeObjectURL(url);
+
+  //     toast({
+  //       title: "Backup criado",
+  //       description: "Todos os dados foram exportados com sucesso.",
+  //     });
+  //   } catch (error) {
+  //     console.error('Erro ao exportar dados:', error);
+  //     toast({
+  //       title: "Erro",
+  //       description: "Não foi possível exportar os dados.",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+const handleExportData = async () => {
+  setLoading(true);
+  try {
+    // Busca todos os dados do banco
+    const products = await db.products.toArray();
+    const sales = await db.sales.toArray();
+    const stockMovements = await db.stockMovements.toArray();
+    const users = await db.users.toArray();
+    const customers = await db.customers.toArray();
+    const creditors = await db.creditors.toArray();
+    const creditSales = await db.creditSales.toArray();
+    const returns = await db.returns.toArray();
+    const expenses = await db.expenses.toArray();
+    const exchanges = await db.exchanges.toArray();
+
+    // Organiza tudo em um objeto único
+    const data = {
+      products,
+      sales,
+      stockMovements,
+      users,
+      customers,
+      creditors,
+      creditSales,
+      returns,
+      expenses,
+      exchanges,
+      exportedAt: new Date().toISOString()
+    };
+
+    // Converte para JSON e gera o arquivo
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup-pdv-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Backup criado",
+      description: "Todos os dados foram exportados com sucesso.",
+    });
+  } catch (error) {
+    console.error('Erro ao exportar dados:', error);
+    toast({
+      title: "Erro",
+      description: "Não foi possível exportar os dados.",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      setLoading(true);
+      const data = JSON.parse(e.target?.result as string);
+
+      if (data.products) {
+        await db.products.clear();
+        await db.products.bulkAdd(data.products);
+      }
+
+      if (data.sales) {
+        await db.sales.clear();
+        await db.sales.bulkAdd(data.sales);
+      }
+
+      if (data.stockMovements) {
+        await db.stockMovements.clear();
+        await db.stockMovements.bulkAdd(data.stockMovements);
+      }
+
+      if (data.users) {
+        await db.users.clear();
+        await db.users.bulkAdd(data.users);
+      }
+
+      if (data.customers) {
+        await db.customers.clear();
+        await db.customers.bulkAdd(data.customers);
+      }
+
+      if (data.creditors) {
+        await db.creditors.clear();
+        await db.creditors.bulkAdd(data.creditors);
+      }
+
+      if (data.creditSales) {
+        await db.creditSales.clear();
+        await db.creditSales.bulkAdd(data.creditSales);
+      }
+
+      if (data.returns) {
+        await db.returns.clear();
+        await db.returns.bulkAdd(data.returns);
+      }
+
+      if (data.expenses) {
+        await db.expenses.clear();
+        await db.expenses.bulkAdd(data.expenses);
+      }
+
+      if (data.exchanges) {
+        await db.exchanges.clear();
+        await db.exchanges.bulkAdd(data.exchanges);
+      }
 
       toast({
-        title: "Backup criado",
-        description: "Todos os dados foram exportados com sucesso.",
+        title: "Backup restaurado",
+        description: "Todos os dados foram importados com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao exportar dados:', error);
+      console.error('Erro ao importar dados:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível exportar os dados.",
+        description: "Não foi possível importar os dados. Verifique o arquivo.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
-
-  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        setLoading(true);
-        const data = JSON.parse(e.target?.result as string);
-        
-        if (data.products) {
-          await db.products.clear();
-          await db.products.bulkAdd(data.products);
-        }
-        
-        if (data.sales) {
-          await db.sales.clear();
-          await db.sales.bulkAdd(data.sales);
-        }
-        
-        if (data.stockMovements) {
-          await db.stockMovements.clear();
-          await db.stockMovements.bulkAdd(data.stockMovements);
-        }
-
-        toast({
-          title: "Dados importados",
-          description: "O backup foi restaurado com sucesso.",
-        });
-      } catch (error) {
-        console.error('Erro ao importar dados:', error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível importar os dados. Verifique o arquivo.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    reader.readAsText(file);
+  reader.readAsText(file);
   };
 
   const handleClearData = async () => {

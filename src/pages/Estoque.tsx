@@ -19,8 +19,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const Estoque = () => {
-  const [products, setProducts] = useState<Product[]>([]);
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+const Estoque = () => {const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -36,6 +38,23 @@ const Estoque = () => {
     minStock: 5
   });
 
+  const [cost, setCost] = useState<number>(0);
+  const [margin, setMargin] = useState<number>(0);
+  const [tax, setTax] = useState<number>(0);
+  const [isManualPrice, setIsManualPrice] = useState(false);
+
+  // Calcula o preço sugerido
+  const calculatePrice = () => {
+    return ((cost || 0) * (1 + (margin || 0) / 100)) * (1 + (tax || 0) / 100);
+  };
+
+  // Atualiza o preço quando custo/margem/imposto mudam
+  useEffect(() => {
+    if (!isManualPrice) {
+      setNewProduct(prev => ({ ...prev, price: calculatePrice() }));
+    }
+  }, [cost, margin, tax]);
+
   useEffect(() => {
     loadProducts();
   }, []);
@@ -46,19 +65,16 @@ const Estoque = () => {
       setProducts(allProducts);
     } catch (error) {
       console.error('Erro ao carregar produtos:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os produtos.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível carregar os produtos.", variant: "destructive" });
     }
   };
 
   const categories = [...new Set(products.map(p => p.category))];
-  
+
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || product.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -68,60 +84,58 @@ const Estoque = () => {
   const saveProduct = async () => {
     try {
       if (!newProduct.name || !newProduct.category || newProduct.price === undefined) {
-        toast({
-          title: "Erro",
-          description: "Preencha todos os campos obrigatórios.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro", description: "Preencha todos os campos obrigatórios.", variant: "destructive" });
         return;
       }
 
-      const productData = {
-        ...newProduct,
+      const productData: Product = {
+        ...(newProduct as Product),
         updatedAt: new Date(),
         createdAt: editingProduct ? editingProduct.createdAt : new Date()
-      } as Product;
+      };
 
       if (editingProduct) {
         await db.products.update(editingProduct.id!, productData);
-        toast({
-          title: "Produto atualizado",
-          description: "Produto atualizado com sucesso.",
-        });
+        toast({ title: "Produto atualizado", description: "Produto atualizado com sucesso." });
       } else {
         await db.products.add(productData);
-        toast({
-          title: "Produto adicionado",
-          description: "Produto adicionado com sucesso.",
-        });
+        toast({ title: "Produto adicionado", description: "Produto adicionado com sucesso." });
       }
 
       setShowAddDialog(false);
       setEditingProduct(null);
-      setNewProduct({
-        name: '',
-        price: 0,
-        stock: 0,
-        category: '',
-        barcode: '',
-        description: '',
-        supplier: '',
-        minStock: 5
-      });
+      resetNewProduct();
       await loadProducts();
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível salvar o produto.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível salvar o produto.", variant: "destructive" });
     }
+  };
+
+  const resetNewProduct = () => {
+    setNewProduct({
+      name: '',
+      price: 0,
+      stock: 0,
+      category: '',
+      barcode: '',
+      description: '',
+      supplier: '',
+      minStock: 5
+    });
+    setCost(0);
+    setMargin(0);
+    setTax(0);
+    setIsManualPrice(false);
   };
 
   const editProduct = (product: Product) => {
     setEditingProduct(product);
     setNewProduct(product);
+    setCost(product.price); // você pode calcular backward se quiser
+    setMargin(0);
+    setTax(0);
+    setIsManualPrice(true);
     setShowAddDialog(true);
   };
 
@@ -129,14 +143,8 @@ const Estoque = () => {
     try {
       const product = await db.products.get(productId);
       if (!product) return;
-
       const newStock = Math.max(0, product.stock + adjustment);
-      await db.products.update(productId, { 
-        stock: newStock,
-        updatedAt: new Date()
-      });
-
-      // Create stock movement
+      await db.products.update(productId, { stock: newStock, updatedAt: new Date() });
       const stockMovement: Omit<StockMovement, 'id'> = {
         productId,
         productName: product.name,
@@ -146,181 +154,81 @@ const Estoque = () => {
         createdAt: new Date()
       };
       await db.stockMovements.add(stockMovement);
-
       await loadProducts();
-      toast({
-        title: "Estoque ajustado",
-        description: `Estoque de ${product.name} ajustado.`,
-      });
+      toast({ title: "Estoque ajustado", description: `Estoque de ${product.name} ajustado.` });
     } catch (error) {
       console.error('Erro ao ajustar estoque:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível ajustar o estoque.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível ajustar o estoque.", variant: "destructive" });
     }
   };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      {/* Cabeçalho e botão Novo Produto */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-foreground">Controle de Estoque</h1>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
-            <Button onClick={() => {
-              setEditingProduct(null);
-              setNewProduct({
-                name: '',
-                price: 0,
-                stock: 0,
-                category: '',
-                barcode: '',
-                description: '',
-                supplier: '',
-                minStock: 5
-              });
-            }}>
+            <Button
+              onClick={() => {
+                setEditingProduct(null);
+                resetNewProduct();
+                setShowAddDialog(true);
+              }}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Novo Produto
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>
-                {editingProduct ? 'Editar Produto' : 'Novo Produto'}
-              </DialogTitle>
+              <DialogTitle>{editingProduct ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Nome *</Label>
-                <Input
-                  id="name"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                  placeholder="Nome do produto"
-                />
-              </div>
+              <InputField label="Nome *" value={newProduct.name} onChange={(v) => setNewProduct({ ...newProduct, name: v })} />
+              
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label htmlFor="price">Preço *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="stock">Estoque</Label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    value={newProduct.stock}
-                    onChange={(e) => setNewProduct({ ...newProduct, stock: Number(e.target.value) })}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="category">Categoria *</Label>
-                <Input
-                  id="category"
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
-                  placeholder="Ex: Ração Cães"
+                <InputField label="Custo do Produto" type="number" value={cost} onChange={(v) => { setCost(Number(v)); setIsManualPrice(false); }} />
+                <InputField label="Margem (%)" type="number" value={margin} onChange={(v) => { setMargin(Number(v)); setIsManualPrice(false); }} />
+                <InputField label="Impostos (%)" type="number" value={tax} onChange={(v) => { setTax(Number(v)); setIsManualPrice(false); }} />
+                <InputField
+                  label="Preço Final *"
+                  type="text" // usamos "text" para permitir a formatação com R$
+                  value={newProduct.price !== undefined ? `R$ ${newProduct.price.toFixed(2)}` : ''}
+                  onChange={(v) => {
+                    // Remove tudo que não é número ou ponto
+                    const numericValue = Number(v.replace(/[^0-9.]/g, ''));
+                    setNewProduct({ ...newProduct, price: numericValue });
+                    setIsManualPrice(true);
+                  }}
+                  placeholder={`R$ ${ formatCurrency(calculatePrice())}`}
                 />
+                <InputField label="Estoque" type="number" value={newProduct.stock} onChange={(v) => setNewProduct({ ...newProduct, stock: Number(v) })} />
               </div>
-              <div>
-                <Label htmlFor="barcode">Código de Barras</Label>
-                <Input
-                  id="barcode"
-                  value={newProduct.barcode}
-                  onChange={(e) => setNewProduct({ ...newProduct, barcode: e.target.value })}
-                  placeholder="Código de barras"
-                />
-              </div>
-              <div>
-                <Label htmlFor="supplier">Fornecedor</Label>
-                <Input
-                  id="supplier"
-                  value={newProduct.supplier}
-                  onChange={(e) => setNewProduct({ ...newProduct, supplier: e.target.value })}
-                  placeholder="Nome do fornecedor"
-                />
-              </div>
-              <div>
-                <Label htmlFor="minStock">Estoque Mínimo</Label>
-                <Input
-                  id="minStock"
-                  type="number"
-                  value={newProduct.minStock}
-                  onChange={(e) => setNewProduct({ ...newProduct, minStock: Number(e.target.value) })}
-                  placeholder="5"
-                />
-              </div>
-              <Button onClick={saveProduct} className="w-full">
-                {editingProduct ? 'Atualizar' : 'Adicionar'} Produto
-              </Button>
+
+              <InputField label="Categoria *" value={newProduct.category} onChange={(v) => setNewProduct({ ...newProduct, category: v })} />
+              <InputField label="Código de Barras" value={newProduct.barcode} onChange={(v) => setNewProduct({ ...newProduct, barcode: v })} />
+              <InputField label="Fornecedor" value={newProduct.supplier} onChange={(v) => setNewProduct({ ...newProduct, supplier: v })} />
+              <InputField label="Estoque Mínimo" type="number" value={newProduct.minStock} onChange={(v) => setNewProduct({ ...newProduct, minStock: Number(v) })} />
+
+              <Button onClick={saveProduct} className="w-full">{editingProduct ? 'Atualizar' : 'Adicionar'} Produto</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Stats Cards */}
+      {/* Cards de estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Package className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total de Produtos</p>
-              <p className="text-2xl font-bold">{products.length}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-warning/10 rounded-lg">
-              <AlertTriangle className="h-6 w-6 text-warning" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Estoque Baixo</p>
-              <p className="text-2xl font-bold text-warning">{lowStockProducts.length}</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-success/10 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-success" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Valor Total Estoque</p>
-              <p className="text-2xl font-bold text-success">
-                R$ {products.reduce((sum, p) => sum + (p.price * p.stock), 0).toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </Card>
+        <StatCard icon={<Package className="h-6 w-6 text-primary" />} title="Total de Produtos" value={products.length} />
+        <StatCard icon={<AlertTriangle className="h-6 w-6 text-warning" />} title="Estoque Baixo" value={lowStockProducts.length} />
+        <StatCard icon={<TrendingUp className="h-6 w-6 text-success" />} title="Valor Total Estoque" value={`R$ ${ formatCurrency(products.reduce((sum, p) => sum + (p.price * p.stock), 0))}`} />
       </div>
 
-      {/* Filters */}
+      {/* Filtros */}
       <Card className="p-4 mb-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar produtos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+            <SearchInput placeholder="Buscar produtos..." value={searchTerm} onChange={setSearchTerm} />
           </div>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-full md:w-48">
@@ -328,15 +236,13 @@ const Estoque = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas as categorias</SelectItem>
-              {categories.map(category => (
-                <SelectItem key={category} value={category}>{category}</SelectItem>
-              ))}
+              {categories.map(category => <SelectItem key={category} value={category}>{category}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
       </Card>
 
-      {/* Products Table */}
+      {/* Tabela de produtos */}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -354,62 +260,21 @@ const Estoque = () => {
               {filteredProducts.map((product) => (
                 <tr key={product.id} className="border-b hover:bg-muted/50">
                   <td className="p-4">
-                    <div>
-                      <p className="font-medium">{product.name}</p>
-                      {product.barcode && (
-                        <p className="text-xs text-muted-foreground">{product.barcode}</p>
-                      )}
-                    </div>
+                    <p className="font-medium">{product.name}</p>
+                    {product.barcode && <p className="text-xs text-muted-foreground">{product.barcode}</p>}
                   </td>
+                  <td className="p-4"><Badge variant="outline">{product.category}</Badge></td>
+                  <td className="p-4 font-medium">R$ { formatCurrency(product.price)}</td>
+                  <td className="p-4"><span className="font-medium">{product.stock}</span> <span className="text-xs text-muted-foreground">un.</span></td>
                   <td className="p-4">
-                    <Badge variant="outline">{product.category}</Badge>
-                  </td>
-                  <td className="p-4 font-medium">
-                    R$ {product.price.toFixed(2)}
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">{product.stock}</span>
-                      <span className="text-xs text-muted-foreground">un.</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <Badge 
-                      variant={
-                        product.stock <= 0 ? "destructive" :
-                        product.stock <= product.minStock ? "warning" :
-                        "success"
-                      }
-                    >
-                      {product.stock <= 0 ? "Sem estoque" :
-                       product.stock <= product.minStock ? "Estoque baixo" :
-                       "Normal"}
+                    <Badge variant={product.stock <= 0 ? "destructive" : product.stock <= product.minStock ? "warning" : "success"}>
+                      {product.stock <= 0 ? "Sem estoque" : product.stock <= product.minStock ? "Estoque baixo" : "Normal"}
                     </Badge>
                   </td>
-                  <td className="p-4">
-                    <div className="flex items-center space-x-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => editProduct(product)}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => adjustStock(product.id!, 10, "Entrada manual")}
-                      >
-                        <TrendingUp className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => adjustStock(product.id!, -1, "Saída manual")}
-                      >
-                        <TrendingDown className="h-3 w-3" />
-                      </Button>
-                    </div>
+                  <td className="p-4 flex items-center space-x-1">
+                    <Button size="sm" variant="outline" onClick={() => editProduct(product)}><Edit className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="outline" onClick={() => adjustStock(product.id!, 10, "Entrada manual")}><TrendingUp className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="outline" onClick={() => adjustStock(product.id!, -1, "Saída manual")}><TrendingDown className="h-3 w-3" /></Button>
                   </td>
                 </tr>
               ))}
@@ -420,5 +285,30 @@ const Estoque = () => {
     </div>
   );
 };
+
+// Componentes auxiliares
+const InputField = ({ label, value, onChange, type = "text", placeholder }: any) => (
+  <div>
+    <Label>{label}</Label>
+    <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+  </div>
+);
+
+const StatCard = ({ icon, title, value }: any) => (
+  <Card className="p-4">
+    <div className="flex items-center space-x-3">
+      <div className="p-2 bg-primary/10 rounded-lg">{icon}</div>
+      <div>
+        <p className="text-sm text-muted-foreground">{title}</p>
+        <p className="text-2xl font-bold">{value}</p>
+      </div>
+    </div>
+  </Card>
+);
+
+const SearchInput = ({ placeholder, value, onChange }: any) => (
+  <Input placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} className="pl-10" />
+);
+
 
 export default Estoque;

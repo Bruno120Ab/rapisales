@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { seedDatabase } from "@/lib/database";
+import { seedDatabase, seedNewDatabase } from "@/lib/database";
 import { authService } from "@/lib/auth";
 import Layout from "@/components/Layout";
 import Login from "./pages/Login";
@@ -16,6 +16,7 @@ import Credores from "./pages/Credores";
 import Clientes from "./pages/Clientes";
 import Devolucoes from "./pages/Devolucoes";
 import NotFound from "./pages/NotFound";
+import ContasPagar from "./pages/ContasPagarReceber";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => {
   useEffect(() => {
     // Initialize database with seed data
     seedDatabase();
+    // seedNewDatabase()
     
     // Check if user is already logged in
     if (authService.isAuthenticated()) {
@@ -68,6 +70,8 @@ const App = () => {
               <Route path="/credores" element={<Credores />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
+              <Route path="/contaspagar" element={<ContasPagar />} />
+
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
@@ -79,3 +83,4 @@ const App = () => {
 };
 
 export default App;
+
