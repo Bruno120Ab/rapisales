@@ -8,8 +8,9 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { db, Creditor, Customer } from '@/lib/database';
+import { db, Creditor, Customer, CarneInstallment, Sale } from '@/lib/database';
 import { formatCurrency, formatDate } from '@/lib/formatters';
+import { PDFGenerator } from '@/lib/pdfGenerator';
 import { 
   Users, 
   Plus, 
@@ -20,7 +21,10 @@ import {
   CheckCircle,
   Clock,
   Edit,
-  Trash2
+  Trash2,
+  FileText,
+  Printer,
+  CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +35,10 @@ const Credores = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCreditor, setEditingCreditor] = useState<Creditor | null>(null);
+  const [carneInstallments, setCarneInstallments] = useState<CarneInstallment[]>([]);
+  const [showCarneDialog, setShowCarneDialog] = useState(false);
+  const [selectedCreditorForCarne, setSelectedCreditorForCarne] = useState<Creditor | null>(null);
+  const [installmentsCount, setInstallmentsCount] = useState('');
   
   // Form fields
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -41,6 +49,7 @@ const Credores = () => {
   useEffect(() => {
     loadCreditors();
     loadCustomers();
+    loadCarneInstallments();
   }, []);
 
   const loadCreditors = async () => {
@@ -65,6 +74,164 @@ const Credores = () => {
         title: "Erro",
         description: "Não foi possível carregar os credores.",
         variant: "destructive",
+      });
+    }
+  };
+
+  const loadCarneInstallments = async () => {
+    try {
+      const installments = await db.carneInstallments.orderBy('dueDate').toArray();
+      setCarneInstallments(installments);
+    } catch (error) {
+      console.error('Erro ao carregar carnês:', error);
+    }
+  };
+
+  const generateCarne = async (creditor: Creditor, installments: number) => {
+    try {
+      const customer = customers.find(c => c.id === creditor.customerId);
+      if (!customer) {
+        toast({
+          title: "Erro",
+          description: "Cliente não encontrado",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Criar parcelas do carnê
+      const installmentValue = creditor.remainingAmount / installments;
+      const carneData = {
+        creditorId: creditor.id!,
+        creditorName: 'Sistema',
+        customerName: customer.name,
+        totalAmount: creditor.remainingAmount,
+        installments: installments,
+        installmentValue: installmentValue,
+        dueDate: new Date(creditor.dueDate)
+      };
+
+      // Salvar parcelas no banco
+      const installmentPromises = [];
+      for (let i = 1; i <= installments; i++) {
+        const installmentDueDate = new Date(creditor.dueDate);
+        installmentDueDate.setMonth(installmentDueDate.getMonth() + (i - 1));
+        
+        installmentPromises.push(db.carneInstallments.add({
+          creditorId: creditor.id!,
+          installmentNumber: i,
+          dueDate: installmentDueDate,
+          amount: installmentValue,
+          paid: false,
+          createdAt: new Date()
+        }));
+      }
+
+      await Promise.all(installmentPromises);
+
+      // Gerar PDF
+      const pdfDataUri = PDFGenerator.generateCarne(carneData);
+      
+      // Abrir PDF em nova janela
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(`<iframe width='100%' height='100%' src='${pdfDataUri}'></iframe>`);
+      }
+
+      await loadCarneInstallments();
+      
+      toast({
+        title: "Carnê gerado!",
+        description: `Carnê de ${installments} parcelas criado com sucesso`
+      });
+
+      setShowCarneDialog(false);
+      setInstallmentsCount('');
+    } catch (error) {
+      console.error('Erro ao gerar carnê:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar carnê",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const markInstallmentAsPaid = async (installmentId: number) => {
+    try {
+      await db.carneInstallments.update(installmentId, {
+        paid: true,
+        paidAt: new Date()
+      });
+
+      await loadCarneInstallments();
+      
+      toast({
+        title: "Parcela paga!",
+        description: "Parcela marcada como paga"
+      });
+    } catch (error) {
+      console.error('Erro ao marcar parcela como paga:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao marcar parcela como paga",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const printSaleInfo = async (creditor: Creditor) => {
+    try {
+      // Buscar dados da venda relacionada
+      const sale = await db.sales.where('customerId').equals(creditor.customerId).last();
+      const customer = customers.find(c => c.id === creditor.customerId);
+      const user = await db.users.get(sale?.userId || 1);
+      
+      if (!sale || !customer) {
+        toast({
+          title: "Erro",
+          description: "Dados da venda não encontrados",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Contar carnês gerados
+      const carneCount = carneInstallments.filter(c => c.creditorId === creditor.id).length;
+
+      const saleData = {
+        saleId: sale.id!,
+        customerName: customer.name,
+        items: sale.items,
+        total: sale.total,
+        paymentMethod: sale.paymentMethod,
+        installments: sale.installments,
+        discount: sale.discount,
+        createdAt: sale.createdAt,
+        seller: user?.username || 'Desconhecido'
+      };
+
+      // Gerar PDF do relatório de venda
+      const pdfDataUri = PDFGenerator.generateSaleReport(saleData);
+      
+      // Abrir PDF em nova janela
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(`
+          <div style="padding: 20px;">
+            <h2>Informações da Compra</h2>
+            <p><strong>Carnês gerados:</strong> ${carneCount} parcelas</p>
+            <iframe width='100%' height='500px' src='${pdfDataUri}'></iframe>
+          </div>
+        `);
+      }
+
+    } catch (error) {
+      console.error('Erro ao imprimir informações da venda:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar relatório da venda",
+        variant: "destructive"
       });
     }
   };
@@ -438,36 +605,99 @@ const Credores = () => {
                 )}
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-col space-y-2">
                 {creditor.status !== 'pago' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => markAsPaid(creditor)}
-                    className="text-success hover:bg-success hover:text-success-foreground"
-                  >
-                    Marcar como Pago
-                  </Button>
+                  <>
+                    <Button 
+                      onClick={() => {
+                        setSelectedCreditorForCarne(creditor);
+                        setShowCarneDialog(true);
+                      }}
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center space-x-1"
+                    >
+                      <FileText className="h-4 w-4" />
+                      <span>Gerar Carnê</span>
+                    </Button>
+                    
+                    <Button 
+                      onClick={() => markAsPaid(creditor)}
+                      size="sm"
+                      className="flex items-center space-x-1 text-success hover:bg-success hover:text-success-foreground"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      <span>Marcar como Pago</span>
+                    </Button>
+                  </>
                 )}
                 
-                <Button
+                <Button 
+                  onClick={() => printSaleInfo(creditor)}
                   size="sm"
-                  variant="outline"
-                  onClick={() => handleEdit(creditor)}
+                  variant="secondary"
+                  className="flex items-center space-x-1"
                 >
-                  <Edit className="h-4 w-4" />
+                  <Printer className="h-4 w-4" />
+                  <span>Imprimir Info</span>
                 </Button>
                 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDelete(creditor.id!)}
-                  className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex space-x-1">
+                  <Button 
+                    onClick={() => handleEdit(creditor)}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    onClick={() => handleDelete(creditor.id!)}
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
+            
+            {/* Mostrar carnês existentes */}
+            {carneInstallments.filter(c => c.creditorId === creditor.id).length > 0 && (
+              <div className="mt-4 p-3 bg-muted rounded-md">
+                <h4 className="text-sm font-medium mb-2 flex items-center">
+                  <CreditCard className="h-4 w-4 mr-1" />
+                  Carnês Gerados ({carneInstallments.filter(c => c.creditorId === creditor.id).length} parcelas)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {carneInstallments
+                    .filter(c => c.creditorId === creditor.id)
+                    .map((installment) => (
+                      <div key={installment.id} className="flex items-center justify-between text-xs p-2 bg-background rounded">
+                        <span>
+                          {installment.installmentNumber}ª - {formatCurrency(installment.amount)} 
+                          <br />
+                          <span className="text-muted-foreground">{formatDate(installment.dueDate)}</span>
+                        </span>
+                        {installment.paid ? (
+                          <Badge variant="secondary" className="text-xs">
+                            Pago {installment.paidAt && `em ${formatDate(installment.paidAt)}`}
+                          </Badge>
+                        ) : (
+                          <Button 
+                            onClick={() => markInstallmentAsPaid(installment.id!)}
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-xs"
+                          >
+                            Pagar
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </Card>
         ))}
 
@@ -484,6 +714,67 @@ const Credores = () => {
           </Card>
         )}
       </div>
+      
+      {/* Dialog para gerar carnê */}
+      <Dialog open={showCarneDialog} onOpenChange={setShowCarneDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerar Carnê de Pagamento</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Cliente: {selectedCreditorForCarne?.customerName}</p>
+              <p className="text-sm text-muted-foreground">
+                Valor Restante: {selectedCreditorForCarne && formatCurrency(selectedCreditorForCarne.remainingAmount)}
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="installmentsCount">Número de Parcelas</Label>
+              <Input
+                id="installmentsCount"
+                type="number"
+                min="1"
+                max="36"
+                placeholder="Ex: 12"
+                value={installmentsCount}
+                onChange={(e) => setInstallmentsCount(e.target.value)}
+              />
+            </div>
+            
+            {installmentsCount && selectedCreditorForCarne && (
+              <div className="p-3 bg-muted rounded-md">
+                <p className="text-sm">
+                  <strong>Valor por parcela:</strong> {' '}
+                  {formatCurrency(selectedCreditorForCarne.remainingAmount / parseInt(installmentsCount))}
+                </p>
+              </div>
+            )}
+            
+            <div className="flex space-x-2">
+              <Button 
+                onClick={() => setShowCarneDialog(false)} 
+                variant="outline" 
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (selectedCreditorForCarne && installmentsCount) {
+                    generateCarne(selectedCreditorForCarne, parseInt(installmentsCount));
+                  }
+                }}
+                disabled={!installmentsCount || parseInt(installmentsCount) < 1}
+                className="flex-1"
+              >
+                Gerar Carnê
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

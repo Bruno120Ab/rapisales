@@ -68,6 +68,17 @@ export interface Creditor {
   updatedAt: Date;
 }
 
+export interface CarneInstallment {
+  id?: number;
+  creditorId: number;
+  installmentNumber: number;
+  dueDate: Date;
+  amount: number;
+  paid: boolean;
+  paidAt?: Date;
+  createdAt: Date;
+}
+
 export interface CreditSale {
   id?: number;
   saleId: number;
@@ -141,6 +152,7 @@ export class PDVDatabase extends Dexie {
   users!: Table<User>;
   customers!: Table<Customer>;
   creditors!: Table<Creditor>;
+  carneInstallments!: Table<CarneInstallment>;
   creditSales!: Table<CreditSale>;
   returns!: Table<Return>;
   expenses!: Table<Expense>;
@@ -155,6 +167,7 @@ export class PDVDatabase extends Dexie {
       users: '++id, username, role',
       customers: '++id, name, phone, cpf',
       creditors: '++id, customerId, status, dueDate',
+      carneInstallments: '++id, creditorId, installmentNumber, dueDate, paid, createdAt',
       creditSales: '++id, saleId, creditorId, dueDate, status',
       returns: '++id, saleId, type, status, createdAt, userId',
       exchanges: '++id, originalSaleId, status, createdAt, userId',

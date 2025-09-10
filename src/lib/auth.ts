@@ -3,7 +3,7 @@ import { db, User } from './database';
 export interface AuthUser {
   id: number;
   username: string;
-  role: 'admin' | 'estagiario';
+  role: 'admin' | 'vendedor' | 'estoquista' | 'estagiario';
 }
 
 class AuthService {
@@ -74,6 +74,16 @@ class AuthService {
     // Estagiário só pode acessar vendas
     if (user.role === 'estagiario') {
       return permission === 'vendas';
+    }
+
+    // Vendedor pode acessar vendas e relatórios
+    if (user.role === 'vendedor') {
+      return permission === 'vendas' || permission === 'relatorios';
+    }
+
+    // Estoquista pode acessar estoque
+    if (user.role === 'estoquista') {
+      return permission === 'estoque';
     }
 
     return false;
