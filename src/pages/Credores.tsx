@@ -90,6 +90,34 @@ const Credores = () => {
     }
   };
 
+  // Função para obter o próximo vencimento de carnê
+  const getNextDueDate = (creditorId: number) => {
+    const creditorInstallments = carneInstallments.filter(c => c.creditorId === creditorId && !c.paid);
+    if (creditorInstallments.length === 0) return null;
+    
+    // Ordenar por data de vencimento e pegar o próximo
+    const sortedInstallments = creditorInstallments.sort((a, b) => 
+      new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    );
+    
+    return sortedInstallments[0]?.dueDate;
+  };
+
+  // Função para obter estatísticas dos carnês de um credor
+  const getCreditorStats = (creditorId: number) => {
+    const creditorInstallments = carneInstallments.filter(c => c.creditorId === creditorId);
+    const paidInstallments = creditorInstallments.filter(c => c.paid);
+    const totalPaid = paidInstallments.reduce((sum, c) => sum + c.amount, 0);
+    const totalRemaining = creditorInstallments.filter(c => !c.paid).reduce((sum, c) => sum + c.amount, 0);
+    
+    return {
+      totalInstallments: creditorInstallments.length,
+      paidInstallments: paidInstallments.length,
+      totalPaid,
+      totalRemaining
+    };
+  };
+
   const loadCarneInstallments = async () => {
     try {
       const installments = await db.carneInstallments.orderBy('dueDate').toArray();
@@ -441,11 +469,18 @@ const Credores = () => {
     }
   };
 
+  // Calcular total em aberto considerando carnês pagos
   const totalPendingDebt = creditors
     .filter(c => c.status !== 'pago')
-    .reduce((sum, c) => sum + c.remainingAmount, 0);
+    .reduce((sum, c) => {
+      const stats = getCreditorStats(c.id!);
+      return sum + stats.totalRemaining;
+    }, 0);
 
   const overdueCount = creditors.filter(c => c.status === 'atrasado').length;
+  
+  // Total de carnês pagos no sistema
+  const totalPaidInstallments = carneInstallments.filter(c => c.paid).length;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -538,7 +573,7 @@ const Credores = () => {
       </div>
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card className="p-4">
           <div className="flex items-center space-x-2">
             <DollarSign className="h-5 w-5 text-warning" />
@@ -557,6 +592,16 @@ const Credores = () => {
             <div>
               <p className="text-sm text-muted-foreground">Em Atraso</p>
               <p className="text-2xl font-bold text-destructive">{overdueCount}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center space-x-2">
+            <CheckCircle className="h-5 w-5 text-success" />
+            <div>
+              <p className="text-sm text-muted-foreground">Carnês Pagos</p>
+              <p className="text-2xl font-bold text-success">{totalPaidInstallments}</p>
             </div>
           </div>
         </Card>
@@ -614,7 +659,7 @@ const Credores = () => {
                   </Badge>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Valor Total</p>
                     <p className="font-medium">{formatCurrency(creditor.totalDebt)}</p>
@@ -622,16 +667,25 @@ const Credores = () => {
                   <div>
                     <p className="text-muted-foreground">Valor Restante</p>
                     <p className="font-medium text-warning">
-                      {formatCurrency(creditor.remainingAmount)}
+                      {formatCurrency(getCreditorStats(creditor.id!).totalRemaining || creditor.remainingAmount)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Vencimento</p>
+                    <p className="text-muted-foreground">Próximo Vencimento</p>
                     <p className={cn(
                       "font-medium",
                       creditor.status === 'atrasado' && "text-destructive"
                     )}>
-                      {formatDate(new Date(creditor.dueDate))}
+                      {(() => {
+                        const nextDue = getNextDueDate(creditor.id!);
+                        return nextDue ? formatDate(new Date(nextDue)) : formatDate(new Date(creditor.dueDate));
+                      })()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Carnês Pagos</p>
+                    <p className="font-medium text-success">
+                      {getCreditorStats(creditor.id!).paidInstallments} / {getCreditorStats(creditor.id!).totalInstallments || 0}
                     </p>
                   </div>
                 </div>
