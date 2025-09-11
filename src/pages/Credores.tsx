@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea';
 import { db, Creditor, Customer, CarneInstallment, Sale } from '@/lib/database';
 import { formatCurrency, formatDate } from '@/lib/formatters';
 import { PDFGenerator } from '@/lib/pdfGenerator';
@@ -28,6 +29,8 @@ import {
   Trash2,
   FileText,
   Printer,
+  Zap,
+  Send,
   CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,6 +49,10 @@ const Credores = () => {
   const [showEditDateDialog, setShowEditDateDialog] = useState(false);
   const [selectedInstallmentForEdit, setSelectedInstallmentForEdit] = useState<CarneInstallment | null>(null);
   const [newInstallmentDate, setNewInstallmentDate] = useState<Date | undefined>(undefined);
+  const [showZapDialog, setShowZapDialog] = useState(false);
+  const [selectedCreditor, setSelectedCreditor] = useState<Creditor | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [customMessage, setCustomMessage] = useState('');
   
   // Form fields
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -464,6 +471,83 @@ const Credores = () => {
       toast({
         title: "Erro",
         description: "Não foi possível registrar o pagamento.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendCarneZap = async (creditor: Creditor) => {
+    if (!webhookUrl) {
+      toast({
+        title: "Erro",
+        description: "Por favor, insira a URL do webhook do Zapier",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const creditorInstallments = carneInstallments.filter(c => c.creditorId === creditor.id);
+      
+      // Gerar carnê em PDF
+      const carneInfo = {
+        creditorId: creditor.id!,
+        creditorName: "Sua Empresa",
+        customerName: creditor.customerName,
+        totalAmount: creditor.totalDebt,
+        installments: creditorInstallments.length || 1,
+        installmentValue: creditor.totalDebt / (creditorInstallments.length || 1),
+        dueDate: new Date(creditor.dueDate),
+        saleId: creditor.id
+      };
+
+      const carneData = PDFGenerator.generateCarne(carneInfo);
+
+      // Dados para enviar ao Zapier
+      const zapierData = {
+        timestamp: new Date().toISOString(),
+        triggered_from: window.location.origin,
+        type: 'carne',
+        creditor: {
+          id: creditor.id,
+          customerName: creditor.customerName,
+          totalDebt: creditor.totalDebt,
+          remainingAmount: creditor.remainingAmount,
+          dueDate: creditor.dueDate,
+          description: creditor.description,
+          status: creditor.status
+        },
+        installments: creditorInstallments.map(inst => ({
+          number: inst.installmentNumber,
+          amount: inst.amount,
+          dueDate: inst.dueDate,
+          paid: inst.paid
+        })),
+        carneData: carneData,
+        message: customMessage || `Carnê para ${creditor.customerName} - ${formatCurrency(creditor.remainingAmount)} em aberto`
+      };
+
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        mode: "no-cors",
+        body: JSON.stringify(zapierData),
+      });
+
+      toast({
+        title: "Carnê enviado!",
+        description: "Carnê enviado via Zapier com sucesso.",
+      });
+
+      setShowZapDialog(false);
+      
+    } catch (error) {
+      console.error("Erro ao enviar carnê:", error);
+      toast({
+        title: "Erro",
+        description: "Falha ao enviar carnê via Zapier.",
         variant: "destructive",
       });
     }

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { db, Product, StockMovement } from '@/lib/database';
+import { db, Product, StockMovement, Customer } from '@/lib/database';
 import { 
   Package, 
   Plus, 
@@ -15,18 +15,24 @@ import {
   AlertTriangle,
   Search,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import ZapDialog from '@/components/ZapDialog';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-const Estoque = () => {const [products, setProducts] = useState<Product[]>([]);
+const Estoque = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showZapDialog, setShowZapDialog] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: '',
     price: 0,
@@ -57,7 +63,17 @@ const Estoque = () => {const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     loadProducts();
+    loadCustomers();
   }, []);
+
+  const loadCustomers = async () => {
+    try {
+      const allCustomers = await db.customers.toArray();
+      setCustomers(allCustomers);
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error);
+    }
+  };
 
   const loadProducts = async () => {
     try {
@@ -275,6 +291,17 @@ const Estoque = () => {const [products, setProducts] = useState<Product[]>([]);
                     <Button size="sm" variant="outline" onClick={() => editProduct(product)}><Edit className="h-3 w-3" /></Button>
                     <Button size="sm" variant="outline" onClick={() => adjustStock(product.id!, 10, "Entrada manual")}><TrendingUp className="h-3 w-3" /></Button>
                     <Button size="sm" variant="outline" onClick={() => adjustStock(product.id!, -1, "Saída manual")}><TrendingDown className="h-3 w-3" /></Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => {
+                        setSelectedProduct(product);
+                        setShowZapDialog(true);
+                      }}
+                      className="text-yellow-600 hover:text-yellow-700"
+                    >
+                      <Zap className="h-3 w-3" />
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -282,6 +309,14 @@ const Estoque = () => {const [products, setProducts] = useState<Product[]>([]);
           </table>
         </div>
       </Card>
+
+      {/* Modal do Zapier */}
+      <ZapDialog 
+        isOpen={showZapDialog}
+        onClose={() => setShowZapDialog(false)}
+        product={selectedProduct}
+        customers={customers}
+      />
     </div>
   );
 };
