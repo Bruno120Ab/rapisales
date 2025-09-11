@@ -53,6 +53,11 @@ const Credores = () => {
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
 
+  function getInstallmentsFromDescription(description: string): number {
+  const match = description.match(/(\d+)\s*x/i);
+  return match ? parseInt(match[1], 10) : 1; // se não achar, volta 1
+}
+
   useEffect(() => {
     loadCreditors();
     loadCustomers();
@@ -642,10 +647,21 @@ const Credores = () => {
                 {creditor.status !== 'pago' && (
                   <>
                     <Button 
-                      onClick={() => {
-                        setSelectedCreditorForCarne(creditor);
-                        setShowCarneDialog(true);
-                      }}
+                      // onClick={() => {
+                      //   setSelectedCreditorForCarne(creditor);
+                      //   setShowCarneDialog(true);
+                      // }}
+
+
+                       onClick={() => {
+    setSelectedCreditorForCarne(creditor);
+
+    // extrai parcelas antes do "x" no description
+    const parcelas = getInstallmentsFromDescription(creditor.description || "");
+    setInstallmentsCount(parcelas.toString());
+
+    setShowCarneDialog(true);
+  }}
                       size="sm"
                       variant="outline"
                       className="flex items-center space-x-1"
@@ -764,7 +780,7 @@ const Credores = () => {
       </div>
       
       {/* Dialog para gerar carnê */}
-      <Dialog open={showCarneDialog} onOpenChange={setShowCarneDialog}>
+      {/* <Dialog open={showCarneDialog} onOpenChange={setShowCarneDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Gerar Carnê de Pagamento</DialogTitle>
@@ -822,8 +838,66 @@ const Credores = () => {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
+      <Dialog open={showCarneDialog} onOpenChange={setShowCarneDialog}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Gerar Carnê de Pagamento</DialogTitle>
+    </DialogHeader>
+    
+    <div className="space-y-4">
+      <div>
+        <p className="text-sm text-muted-foreground">
+          Cliente: {selectedCreditorForCarne?.customerName}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Valor Restante:{" "}
+          {selectedCreditorForCarne &&
+            formatCurrency(selectedCreditorForCarne.remainingAmount)}
+        </p>
+      </div>
       
+      <div className="p-3 bg-muted rounded-md space-y-2">
+        <p className="text-sm">
+          <strong>Número de parcelas:</strong> {installmentsCount}
+        </p>
+        {selectedCreditorForCarne && (
+          <p className="text-sm">
+            <strong>Valor por parcela:</strong>{" "}
+            {formatCurrency(
+              selectedCreditorForCarne.remainingAmount /
+                parseInt(installmentsCount || "1", 10)
+            )}
+          </p>
+        )}
+      </div>
+      
+      <div className="flex space-x-2">
+        <Button 
+          onClick={() => setShowCarneDialog(false)} 
+          variant="outline" 
+          className="flex-1"
+        >
+          Cancelar
+        </Button>
+        <Button 
+          onClick={() => {
+            if (selectedCreditorForCarne && installmentsCount) {
+              generateCarne(
+                selectedCreditorForCarne, 
+                parseInt(installmentsCount, 10)
+              );
+            }
+          }}
+          disabled={!installmentsCount || parseInt(installmentsCount, 10) < 1}
+          className="flex-1"
+        >
+          Confirmar
+        </Button>
+      </div>
+    </div>
+  </DialogContent>
+</Dialog>
       {/* Dialog para editar data da parcela */}
       <Dialog open={showEditDateDialog} onOpenChange={setShowEditDateDialog}>
         <DialogContent>
