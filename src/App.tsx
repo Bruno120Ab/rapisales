@@ -28,7 +28,7 @@ const App = () => {
 
   useEffect(() => {
     // Initialize database with seed data
-    seedDatabase();
+    // seedDatabase();
         setupPWAInstallPrompt();
 
     // seedNewDatabase()

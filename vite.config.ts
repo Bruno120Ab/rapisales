@@ -4,31 +4,45 @@ import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  server: {
-    host: "::",
-    port: 8080,
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
   },
   plugins: [
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      devOptions: { enabled: true },
+      devOptions: {
+        enabled: true, // permite rodar PWA em modo dev (apenas para testes)
+      },
+      includeAssets: ["icon.jpeg", "icon-192.png", "icon-512.png"],
       manifest: {
-        name: "PDV App",
-        short_name: "PDV",
-        description: "ERP completo",
-        theme_color: "#0d6efd",
-        background_color: "#ffffff",
-        display: "standalone",
+        name: "RapiSale",
+        short_name: "RapiGo",
         start_url: "/",
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#ffffff",
         icons: [
-          { src: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" }
-        ]
-      }
-    })
+          {
+            src: "/icon-192.png", // ✅ raiz pública
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/icon-512.png", // ✅ raiz pública
+            sizes: "512x512",
+            type: "image/png",
+          },
+          {
+            src: "/icon-512.png", // recomendado adicionar "maskable"
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+        ],
+      },
+    }),
   ],
-  resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") }
-  }
 });

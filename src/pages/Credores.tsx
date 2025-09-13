@@ -882,7 +882,7 @@ const Credores = () => {
                             </Button>
                           )}
                           
-                          <Button 
+                          {/* <Button 
                             onClick={() => {
                               setSelectedInstallmentForEdit(installment);
                               setNewInstallmentDate(installment.dueDate);
@@ -893,7 +893,7 @@ const Credores = () => {
                             className="h-6 text-xs"
                           >
                             <CalendarIcon className="h-3 w-3" />
-                          </Button>
+                          </Button> */}
                         </div>
                       </div>
                     ))}

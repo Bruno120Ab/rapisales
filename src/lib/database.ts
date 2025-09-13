@@ -185,7 +185,7 @@ export const seedDatabase = async () => {
   const userCount = await db.users.count();
   
   // Seed users
-  if (userCount === 0 || userCount !== 0 ) {
+  if (userCount === 0 ) {
     const initialUsers: Omit<User, 'id'>[] = [
       {
         username: 'admin',
@@ -199,18 +199,6 @@ export const seedDatabase = async () => {
         role: 'estagiario',
         createdAt: new Date()
       },
-       {
-        username: 'Dev',
-        password: 'Dev123', // Em produção, usar hash
-        role: 'admin',
-        createdAt: new Date()
-      },
-      {
-        username: 'Funcionario',
-        password: 'Funcionario123', // Em produção, usar hash
-        role: 'estoquista',
-        createdAt: new Date()
-      }
     ];
     await db.users.bulkAdd(initialUsers);
   }

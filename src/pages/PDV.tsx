@@ -277,12 +277,6 @@ const PDV = () => {
             {products.length} produtos cadastrados
           </Badge>
         </div>
-          <div className="flex items-center space-x-4">
-          <Badge variant="outline" className="text-sm">
-                  <button id="installBtn">Instalar App</button>
-
-          </Badge>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -12,7 +12,6 @@ export default function InstallPWAButton() {
       className=" right-4 h-10 text-lg text-white gap-x-1 bg-primary px-4 py-1 mx-auto rounded shadow-lg transition flex "
     >
     <ArrowDownToLine className="" />
-      Instalar App
     </button>
   );
 }
