@@ -17,17 +17,19 @@ import Clientes from "./pages/Clientes";
 import Devolucoes from "./pages/Devolucoes";
 import NotFound from "./pages/NotFound";
 import ContasPagar from "./pages/ContasPagarReceber";
+import { useAutoBackup } from "./lib/useAuto";
 
 const queryClient = new QueryClient();
 
 const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  useAutoBackup(30);
 
   useEffect(() => {
     // Initialize database with seed data
     seedDatabase();
-    // seedNewDatabase()
     
+    // seedNewDatabase()
     // Check if user is already logged in
     if (authService.isAuthenticated()) {
       setIsAuthenticated(true);
