@@ -22,6 +22,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { setupPWAInstallPrompt } from '@/pwa';
 
 interface CartItem extends SaleItem {
   stock: number;
@@ -274,6 +275,12 @@ const PDV = () => {
         <div className="flex items-center space-x-4">
           <Badge variant="outline" className="text-sm">
             {products.length} produtos cadastrados
+          </Badge>
+        </div>
+          <div className="flex items-center space-x-4">
+          <Badge variant="outline" className="text-sm">
+                  <button id="installBtn">Instalar App</button>
+
           </Badge>
         </div>
       </div>

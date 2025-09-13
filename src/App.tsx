@@ -18,6 +18,7 @@ import Devolucoes from "./pages/Devolucoes";
 import NotFound from "./pages/NotFound";
 import ContasPagar from "./pages/ContasPagarReceber";
 import { useAutoBackup } from "./lib/useAuto";
+import { setupPWAInstallPrompt } from "./pwa";
 
 const queryClient = new QueryClient();
 
@@ -28,7 +29,8 @@ const App = () => {
   useEffect(() => {
     // Initialize database with seed data
     seedDatabase();
-    
+        setupPWAInstallPrompt();
+
     // seedNewDatabase()
     // Check if user is already logged in
     if (authService.isAuthenticated()) {
