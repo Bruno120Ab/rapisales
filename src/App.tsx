@@ -29,8 +29,9 @@ const App = () => {
   useEffect(() => {
     // Initialize database with seed data
     // seedDatabase();
-      setupPWAInstallPrompt();
       seedDatabase()
+
+      setupPWAInstallPrompt();
     // seedNewDatabase()
     // Check if user is already logged in
     if (authService.isAuthenticated()) {
