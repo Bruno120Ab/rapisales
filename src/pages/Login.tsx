@@ -57,7 +57,7 @@ const Login = ({ onLogin }: LoginProps) => {
             <User className="h-6 w-6 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Sistema PDV</h1>
-          <p className="text-muted-foreground">Pet Shop & Ração</p>
+          <p className="text-muted-foreground">ERP Completo</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

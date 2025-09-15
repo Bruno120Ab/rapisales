@@ -270,13 +270,10 @@ const handleExportData = async () => {
           <h2 className="text-xl font-semibold mb-4">Informações do Sistema</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
-              <Label>Sistema PDV Pet Shop</Label>
+              <Label>ERP Completo</Label>
               <p className="text-muted-foreground">Versão 1.0.0</p>
             </div>
-            <div>
-              <Label>Armazenamento</Label>
-              <p className="text-muted-foreground">IndexedDB (Local)</p>
-            </div>
+           
             <div>
               <Label>Última atualização</Label>
               <p className="text-muted-foreground">{new Date().toLocaleDateString()}</p>
@@ -395,13 +392,7 @@ const handleExportData = async () => {
           <h2 className="text-xl font-semibold mb-4">Sobre</h2>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>
-              Sistema PDV completo para Pet Shops com controle de estoque integrado.
-            </p>
-            <p>
-              Desenvolvido com React, TypeScript e IndexedDB para armazenamento local.
-            </p>
-            <p>
-              Todos os dados são armazenados localmente no seu navegador.
+              Sistema PDV completo com controle de estoque integrado.
             </p>
           </div>
         </Card>

@@ -91,20 +91,38 @@ export const sendBackupToDriveAndLocal = async () => {
     console.log("=== Iniciando backup ===");
 
     // 1️⃣ Pega os dados do banco
-    console.log("Buscando dados do banco...");
+    // console.log("Buscando dados do banco...");
+    // const products = await db.products.toArray();
+    // console.log(`Produtos encontrados: ${products.length}`);
+    // const sales = await db.sales.toArray();
+    // console.log(`Vendas encontradas: ${sales.length}`);
+    // const stockMovements = await db.stockMovements.toArray();
+    // console.log(`Movimentos de estoque encontrados: ${stockMovements.length}`);
     const products = await db.products.toArray();
-    console.log(`Produtos encontrados: ${products.length}`);
     const sales = await db.sales.toArray();
-    console.log(`Vendas encontradas: ${sales.length}`);
     const stockMovements = await db.stockMovements.toArray();
-    console.log(`Movimentos de estoque encontrados: ${stockMovements.length}`);
+    const users = await db.users.toArray();
+    const customers = await db.customers.toArray();
+    const creditors = await db.creditors.toArray();
+    const creditSales = await db.creditSales.toArray();
+    const returns = await db.returns.toArray();
+    const expenses = await db.expenses.toArray();
+    const exchanges = await db.exchanges.toArray();
 
     const data = {
       products,
       sales,
       stockMovements,
+      users,
+      customers,
+      creditors,
+      creditSales,
+      returns,
+      expenses,
+      exchanges,
       exportedAt: new Date().toISOString()
     };
+
     console.log("Dados compilados para backup:", data);
 
     // 2️⃣ Envio para Apps Script via formulário (resolve CORS)
