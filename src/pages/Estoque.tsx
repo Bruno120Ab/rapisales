@@ -291,7 +291,7 @@ const Estoque = () => {
                     <Button size="sm" variant="outline" onClick={() => editProduct(product)}><Edit className="h-3 w-3" /></Button>
                     <Button size="sm" variant="outline" onClick={() => adjustStock(product.id!, 10, "Entrada manual")}><TrendingUp className="h-3 w-3" /></Button>
                     <Button size="sm" variant="outline" onClick={() => adjustStock(product.id!, -1, "Saída manual")}><TrendingDown className="h-3 w-3" /></Button>
-                    <Button 
+                    {/* <Button 
                       size="sm" 
                       variant="outline" 
                       onClick={() => {
@@ -301,7 +301,7 @@ const Estoque = () => {
                       className="text-yellow-600 hover:text-yellow-700"
                     >
                       <Zap className="h-3 w-3" />
-                    </Button>
+                    </Button> */}
                   </td>
                 </tr>
               ))}
