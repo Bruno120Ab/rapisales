@@ -18,8 +18,8 @@ export default defineConfig({
       },
       includeAssets: ["icon.jpeg", "icon-192.png", "icon-512.png"],
       manifest: {
-        name: "RapiSale",
-        short_name: "RapiGo",
+        name: "ERP Completo",
+        short_name: "ERP",
         start_url: "/",
         display: "standalone",
         background_color: "#ffffff",
