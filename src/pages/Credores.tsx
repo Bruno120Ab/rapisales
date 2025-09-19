@@ -811,7 +811,7 @@ const Credores = () => {
                     <Button 
                       onClick={() => markAsPaid(creditor)}
                       size="sm"
-                      className="flex items-center space-x-1 text-success hover:bg-success hover:text-success-foreground"
+                      className="flex items-center space-x-1 hover:bg-success hover:text-success-foreground"
                     >
                       <CheckCircle className="h-4 w-4" />
                       <span>Marcar como Pago</span>

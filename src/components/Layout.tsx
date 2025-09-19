@@ -42,12 +42,18 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
       <header className="bg-card border-b border-border">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Store className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">
-                RapiSale
-              </h1>
-            </div>
+     <div className="flex items-center space-x-4">
+  <img
+    src="src/assets/logo.png"
+    alt="Boutique da Thaina"
+    className="h-16 w-16 rounded-full object-cover"
+  />
+  <h1 className="text-3xl font-bold text-foreground">
+    Boutique da Thaina
+  </h1>
+</div>
+
+
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-sm text-muted-foreground">
