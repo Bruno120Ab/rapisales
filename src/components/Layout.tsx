@@ -52,7 +52,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
           <div className="flex items-center space-x-4">
             <div className="text-sm text-muted-foreground">
               Usuário: <span className="font-medium">{currentUser?.username}</span>
-              {currentUser?.role === 'admin' && <span className="text-primary"> (Admin)</span>}
+              {currentUser?.role === 'admin' && <span className="text-primary"> (Thainá)</span>}
             </div>
             <Button 
               variant="ghost" 
