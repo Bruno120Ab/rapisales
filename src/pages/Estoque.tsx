@@ -493,7 +493,7 @@ const OrderManagement = () => {
     O <span className="font-semibold">RapiSale</span> serve para controlar as vendas no local, enquanto o <span className="font-semibold">RapiDelivery</span> gerencia todas as vendas de delivery.
   </p>
 </div>
-
+  
     {orders.length === 0 ? (
       <Card className="shadow-md border">
         <CardContent className="text-center py-16">

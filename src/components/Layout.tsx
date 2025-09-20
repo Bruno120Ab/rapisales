@@ -52,7 +52,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
     className="h-16 w-16 rounded-full object-cover"
   />
   <h1 className="text-3xl font-bold text-foreground">
-    {user?.user_metadata.restaurantData.name}
+    {user?.user_metadata?.restaurantData?.name}
   </h1>
 </div>
 
