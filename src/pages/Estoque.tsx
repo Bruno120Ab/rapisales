@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 // import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -382,9 +382,12 @@ const OrderManagement = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  console.log(orders)
+  const [view, setView] = useState<"list" | "grid">("list");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterToday, setFilterToday] = useState(false);
 
-  if (profile?.user_type !== 'vendor' || !restaurant) {
+
+  if (profile?.user_type !== "vendor" || !restaurant) {
     return (
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <Card>
@@ -400,28 +403,30 @@ const OrderManagement = () => {
     );
   }
 
+  
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-yellow-500',
-      confirmed: 'bg-blue-500',
-      preparing: 'bg-orange-500',
-      ready: 'bg-green-500',
-      delivering: 'bg-purple-500',
-      delivered: 'bg-gray-500',
-      cancelled: 'bg-red-500'
+      pending: "bg-yellow-500",
+      confirmed: "bg-blue-500",
+      preparing: "bg-orange-500",
+      ready: "bg-green-500",
+      delivering: "bg-purple-500",
+      delivered: "bg-gray-500",
+      cancelled: "bg-red-500",
     };
-    return colors[status] || 'bg-gray-500';
+    return colors[status] || "bg-gray-500";
   };
 
   const getStatusText = (status: string) => {
     const texts: Record<string, string> = {
-      pending: 'Pendente',
-      confirmed: 'Confirmado',
-      preparing: 'Preparando',
-      ready: 'Pronto',
-      delivering: 'Entregando',
-      delivered: 'Entregue',
-      cancelled: 'Cancelado'
+      pending: "Pendente",
+      confirmed: "Confirmado",
+      preparing: "Preparando",
+      ready: "Pronto",
+      delivering: "Entregando",
+      delivered: "Entregue",
+      cancelled: "Cancelado",
     };
     return texts[status] || status;
   };
@@ -434,19 +439,19 @@ const OrderManagement = () => {
       ready: CheckCircle,
       delivering: Truck,
       delivered: CheckCircle,
-      cancelled: X
+      cancelled: X,
     };
     return icons[status] || Clock;
   };
 
-  const handleStatusUpdate = async (orderId: string, newStatus: Order['status']) => {
+  const handleStatusUpdate = async (orderId: string, newStatus: Order["status"]) => {
     const { error } = await updateOrderStatus(orderId, newStatus);
-    
+
     if (error) {
       toast({
         title: "Erro",
         description: "Não foi possível atualizar o status do pedido",
-        variant: "destructive"
+        variant: "destructive",
       });
     } else {
       toast({
@@ -458,14 +463,38 @@ const OrderManagement = () => {
 
   const openWhatsApp = (order: Order) => {
     const message = encodeURIComponent(
-      `Olá ${order.customer?.name || 'Cliente'}! Seu pedido #${order.id.slice(0, 8)} está ${getStatusText(order.status).toLowerCase()}.\n\n` +
-      `Total: R$ ${order.total_amount.toFixed(2)}\n` +
-      `Endereço: ${order.delivery_address}`
+      `Olá ${order.customer?.name || "Cliente"}! Seu pedido #${order.id.slice(
+        0,
+        8
+      )} está ${getStatusText(order.status).toLowerCase()}.\n\n` +
+        `Total: R$ ${order.total_amount.toFixed(2)}\n` +
+        `Endereço: ${order.delivery_address}`
     );
-    
-    const phone = order.customer?.phone?.replace(/\D/g, '') || '5511999999999';
-    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    const phone = order.customer?.phone?.replace(/\D/g, "") || "5511999999999";
+    window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
   };
+
+const filteredOrders = useMemo(() => {
+  let result = orders;
+
+  if (filterStatus !== "all") {
+    result = result.filter((o) => o.status === filterStatus);
+  }
+
+  if (filterToday) {
+    const today = new Date();
+    result = result.filter((o) => {
+      const orderDate = new Date(o.created_at);
+      return (
+        orderDate.getDate() === today.getDate() &&
+        orderDate.getMonth() === today.getMonth() &&
+        orderDate.getFullYear() === today.getFullYear()
+      );
+    });
+  }
+
+  return result;
+}, [orders, filterStatus, filterToday]);
 
   if (isLoading) {
     return (
@@ -478,201 +507,178 @@ const OrderManagement = () => {
     );
   }
 
- return (
-  <div className="min-h-screen bg-white">
-  <div className="container mx-auto px-4 py-6">
-    {/* HEADER */}
- <div className="text-center mb-8">
-  <h2 className="text-3xl lg:text-4xl font-extrabold text-orange-600 mb-2">
-    Pedidos do RapiDelivery
-  </h2>
-  <p className="text-gray-600 text-lg">
-    Acompanhe os pedidos de delivery em tempo real.
-  </p>
-  <p className="text-gray-500 text-sm mt-1 max-w-xl mx-auto">
-    O <span className="font-semibold">RapiSale</span> serve para controlar as vendas no local, enquanto o <span className="font-semibold">RapiDelivery</span> gerencia todas as vendas de delivery.
-  </p>
-</div>
-  
-    {orders.length === 0 ? (
-      <Card className="shadow-md border">
-        <CardContent className="text-center py-16">
-          <ShoppingBag className="mx-auto h-20 w-20 text-gray-400 mb-6" />
-          <h3 className="text-xl font-semibold mb-2 text-gray-700">Nenhum pedido</h3>
-          <p className="text-gray-500">Os pedidos aparecerão aqui quando chegarem</p>
-        </CardContent>
-      </Card>
-    ) : (
-      <div className="grid gap-6">
-        {orders.map((order) => {
-          const StatusIcon = getStatusIcon(order.status);
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        {/* HEADER */}
+        <div className="text-center mb-6">
+          <h2 className="text-3xl lg:text-4xl font-extrabold text-orange-600 mb-2">
+            Pedidos do RapiDelivery
+          </h2>
+          <p className="text-gray-600 text-lg">
+            Acompanhe os pedidos de delivery em tempo real.
+          </p>
+        </div>
 
-          return (
-            <Card
-              key={order.id}
-              className="shadow-lg border border-gray-200 rounded-2xl overflow-hidden"
-            >
-              {/* HEADER */}
-              <CardHeader className="bg-gray-50 border-b border-gray-200 px-6 py-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-gray-800">
-                      <StatusIcon className="h-5 w-5 text-red-500" />
-                      Pedido #{order.id.slice(0, 8)}
-                    </CardTitle>
-                    <p className="text-xs text-gray-500">
-                      {formatDistanceToNow(new Date(order.created_at), {
-                        addSuffix: true,
-                        locale: ptBR,
-                      })}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <Badge
-                      className={`${getStatusColor(order.status)} text-white px-3 py-1 rounded-full text-sm`}
-                    >
-                      {getStatusText(order.status)}
-                    </Badge>
-                    <p className="text-xl font-bold text-gray-900 mt-1">
-                      R$ {order.total_amount.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
+        {/* FILTRO + VIEW TOGGLE */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-48 border-gray-300 rounded-lg">
+              <SelectValue placeholder="Filtrar por status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {[
+                "pending",
+                "confirmed",
+                "preparing",
+                "ready",
+                "delivering",
+                "delivered",
+                "cancelled",
+              ].map((status) => (
+                <SelectItem key={status} value={status}>
+                  {getStatusText(status)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-              {/* BODY */}
-              <CardContent className="px-6 py-4 space-y-4">
-                {/* Cliente */}
-                <div className="flex items-center justify-between bg-gray-100 rounded-xl p-3">
-                  <div className="flex items-center gap-3">
-                    <User className="h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="text-sm font-semibold">{order.customer?.name}</p>
-                      <p className="text-xs text-gray-500">{order.customer?.phone}</p>
+          <div className="flex gap-2">
+            <Button variant={view === "list" ? "default" : "outline"} onClick={() => setView("list")}>
+              Fila
+            </Button>
+            <Button variant={view === "grid" ? "default" : "outline"} onClick={() => setView("grid")}>
+              Grid
+            </Button>
+            <Button
+  variant={filterToday ? "default" : "outline"}
+  onClick={() => setFilterToday(!filterToday)}
+>
+  Hoje
+</Button>
+          </div>
+        </div>
+
+        {/* PEDIDOS */}
+        {orders.length === 0 ? (
+          <Card className="shadow-md border">
+            <CardContent className="text-center py-16">
+              <ShoppingBag className="mx-auto h-20 w-20 text-gray-400 mb-6" />
+              <h3 className="text-xl font-semibold mb-2 text-gray-700">Nenhum pedido</h3>
+              <p className="text-gray-500">Os pedidos aparecerão aqui quando chegarem</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className={view === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-6"}>
+            {filteredOrders.map((order) => {
+              const StatusIcon = getStatusIcon(order.status);
+
+              return (
+                <Card key={order.id} className="shadow-lg border border-gray-200 rounded-2xl overflow-hidden">
+                  <CardHeader className="bg-gray-50 border-b border-gray-200 px-6 py-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <CardTitle className="flex items-center gap-2 text-gray-800">
+                          <StatusIcon className="h-5 w-5 text-red-500" />
+                          Pedido #{order.id.slice(0, 8)}
+                        </CardTitle>
+                        <p className="text-xs text-gray-500">
+                          {formatDistanceToNow(new Date(order.created_at), {
+                            addSuffix: true,
+                            locale: ptBR,
+                          })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge className={`${getStatusColor(order.status)} text-white px-3 py-1 rounded-full text-sm`}>
+                          {getStatusText(order.status)}
+                        </Badge>
+                        <p className="text-xl font-bold text-gray-900 mt-1">R$ {order.total_amount.toFixed(2)}</p>
+                      </div>
                     </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    className="bg-green-500 hover:bg-green-600 text-white rounded-lg"
-                    onClick={() => openWhatsApp(order)}
-                  >
-                    <Phone className="h-4 w-4 mr-1" /> WhatsApp
-                  </Button>
-                </div>
+                  </CardHeader>
 
-                {/* Endereço */}
-                <div className="flex items-start gap-3 bg-gray-100 rounded-xl p-3">
-                  <MapPin className="h-5 w-5 text-gray-500 mt-1" />
-                  <div>
-                    <p className="text-sm font-semibold">Entrega</p>
-                    <p className="text-xs text-gray-500">{order.delivery_address}</p>
-                  </div>
-                </div>
-
-                {/* Itens */}
-                <div>
-                  <h4 className="font-semibold text-gray-800 mb-2">Itens do pedido</h4>
-                  <div className="space-y-3">
-                    {order.order_items?.map((item) => {
-                      const addonsTotal =
-                        item.addons?.reduce(
-                          (sum, addon) => sum + addon.unit_price * addon.quantity,
-                          0
-                        ) || 0;
-                      const itemTotal =
-                        (item.unit_price + addonsTotal) * item.quantity;
-
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex justify-between items-start border-b border-gray-200 pb-2"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">
-                              {item.quantity}x {item.product?.name}
-                            </p>
-                            {item.addons?.length > 0 && (
-                              <ul className="ml-4 mt-1 space-y-1">
-                                {item.addons.map((addon) => (
-                                  <li
-                                    key={addon.id}
-                                    className="text-xs text-gray-500"
-                                  >
-                                    + {addon.addon?.name} (
-                                    {addon.quantity}x) — R${" "}
-                                    {(addon.unit_price * addon.quantity).toFixed(2)}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                          <span className="text-sm font-bold text-gray-900">
-                            R$ {itemTotal.toFixed(2)}
-                          </span>
+                  <CardContent className="px-6 py-4 space-y-4">
+                    {/* Cliente */}
+                    <div className="flex items-center justify-between bg-gray-100 rounded-xl p-3">
+                      <div className="flex items-center gap-3">
+                        <User className="h-5 w-5 text-gray-500" />
+                        <div>
+                          <p className="text-sm font-semibold">{order.customer?.name}</p>
+                          <p className="text-xs text-gray-500">{order.customer?.phone}</p>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Totais */}
-                <div className="pt-3 border-t border-gray-200">
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Subtotal</span>
-                    <span>
-                      R$ {(order.total_amount - order.delivery_fee).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Taxa de entrega</span>
-                    <span>R$ {order.delivery_fee.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-lg font-bold text-gray-900 mt-2">
-                    <span>Total</span>
-                    <span>R$ {order.total_amount.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {/* Status Update */}
-                {order.status !== "delivered" &&
-                  order.status !== "cancelled" && (
-                    <div className="pt-4">
-                      <Label className="text-sm font-medium">
-                        Atualizar status:
-                      </Label>
-                      <Select
-                        value={order.status}
-                        onValueChange={(value) =>
-                          handleStatusUpdate(order.id, value as Order["status"])
-                        }
-                      >
-                        <SelectTrigger className="mt-2 w-full border-gray-300 rounded-lg">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pendente</SelectItem>
-                          <SelectItem value="confirmed">Confirmado</SelectItem>
-                          <SelectItem value="preparing">Preparando</SelectItem>
-                          <SelectItem value="ready">Pronto</SelectItem>
-                          <SelectItem value="delivering">Entregando</SelectItem>
-                          <SelectItem value="delivered">Entregue</SelectItem>
-                          <SelectItem value="cancelled">Cancelado</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      </div>
+                      <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white rounded-lg" onClick={() => openWhatsApp(order)}>
+                        <Phone className="h-4 w-4 mr-1" /> WhatsApp
+                      </Button>
                     </div>
-                  )}
-              </CardContent>
-            </Card>
-          );
-        })}
+
+                    {/* Endereço */}
+                    <div className="flex items-start gap-3 bg-gray-100 rounded-xl p-3">
+                      <MapPin className="h-5 w-5 text-gray-500 mt-1" />
+                      <div>
+                        <p className="text-sm font-semibold">Entrega</p>
+                        <p className="text-xs text-gray-500">{order.delivery_address}</p>
+                      </div>
+                    </div>
+
+                    {/* Itens */}
+                    <div>
+                      <h4 className="font-semibold text-gray-800 mb-2">Itens do pedido</h4>
+                      <div className="space-y-3">
+                        {order.order_items?.map((item) => {
+                          const addonsTotal = item.addons?.reduce((sum, addon) => sum + addon.unit_price * addon.quantity, 0) || 0;
+                          const itemTotal = (item.unit_price + addonsTotal) * item.quantity;
+
+                          return (
+                            <div key={item.id} className="flex justify-between items-start border-b border-gray-200 pb-2">
+                              <div>
+                                <p className="text-sm font-medium">{item.quantity}x {item.product?.name}</p>
+                                {item.addons?.length > 0 && (
+                                  <ul className="ml-4 mt-1 space-y-1">
+                                    {item.addons.map((addon) => (
+                                      <li key={addon.id} className="text-xs text-gray-500">
+                                        + {addon.addon?.name} ({addon.quantity}x) — R$ {(addon.unit_price * addon.quantity).toFixed(2)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                              <span className="text-sm font-bold text-gray-900">R$ {itemTotal.toFixed(2)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Status Update */}
+                    {order.status !== "delivered" && order.status !== "cancelled" && (
+                      <div className="pt-4">
+                        <Label className="text-sm font-medium">Atualizar status:</Label>
+                        <Select value={order.status} onValueChange={(value) => handleStatusUpdate(order.id, value as Order["status"])}>
+                          <SelectTrigger className="mt-2 w-full border-gray-300 rounded-lg">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["pending", "confirmed", "preparing", "ready", "delivering", "delivered", "cancelled"].map((status) => (
+                              <SelectItem key={status} value={status}>{getStatusText(status)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
-    )}
-  </div>
-</div>
-
-);
-
+    </div>
+  );
 };
+
 
 export default OrderManagement;
 
