@@ -181,7 +181,7 @@ const Relatorios = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
+        <h1 className="text-3xl font-bold text-foreground">Relatórios do RapiSale</h1>
         <div className="flex items-center space-x-4">
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-48">

@@ -19,6 +19,8 @@ import NotFound from "./pages/NotFound";
 import ContasPagar from "./pages/ContasPagarReceber";
 import { useAutoBackup } from "./lib/useAuto";
 import { setupPWAInstallPrompt } from "./pwa";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import OrderManagement from "./pages/Estoque";
 
 const queryClient = new QueryClient();
 
@@ -61,15 +63,44 @@ const App = () => {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
+    // <QueryClientProvider client={queryClient}>
+    //   <AuthProvider>
+    //   <TooltipProvider>
+    //     <Toaster />
+    //     <Sonner />
+    //     <BrowserRouter>
+    //       <Layout onLogout={handleLogout}>
+    //         <Routes>
+    //           <Route path="/" element={<PDV />} />
+    //           <Route path="/estoque" element={<Estoque />} />
+    //           <Route path="/relatorios" element={<Relatorios />} />
+    //           <Route path="/devolucoes" element={<Devolucoes />} />
+    //           <Route path="/credores" element={<Credores />} />
+    //           <Route path="/clientes" element={<Clientes />} />
+    //           <Route path="/configuracoes" element={<Configuracoes />} />
+    //           <Route path="/contaspagar" element={<ContasPagar />} />
+
+    //           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+    //           <Route path="*" element={<NotFound />} />
+    //         </Routes>
+    //       </Layout>
+    //     </BrowserRouter>
+    //   </TooltipProvider>
+    //   </AuthProvider>
+    // </QueryClientProvider>
+
+
+
+<QueryClientProvider client={queryClient}>
+  <BrowserRouter>
+    <AuthProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <Layout onLogout={handleLogout}>
-            <Routes>
+        <Layout onLogout={handleLogout}>
+          <Routes>
               <Route path="/" element={<PDV />} />
-              <Route path="/estoque" element={<Estoque />} />
+              <Route path="/estoque" element={<OrderManagement />} />
               <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/devolucoes" element={<Devolucoes />} />
               <Route path="/credores" element={<Credores />} />
@@ -80,10 +111,12 @@ const App = () => {
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </Layout>
-        </BrowserRouter>
+        </Layout>
       </TooltipProvider>
-    </QueryClientProvider>
+    </AuthProvider>
+  </BrowserRouter>
+</QueryClientProvider>
+
   );
 };
 

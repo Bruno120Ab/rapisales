@@ -23,13 +23,15 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { setupPWAInstallPrompt } from '@/pwa';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CartItem extends SaleItem {
   stock: number;
 }
 
 const PDV = () => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'dinheiro' | 'cartao' | 'pix' | 'crediario'>('dinheiro');
@@ -37,12 +39,23 @@ const PDV = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
   const [installments, setInstallments] = useState(1);
+  const { user, profile } = useAuth();
+
+  const city = profile?.id
+1
+  console.log(profile?.id)
 
   useEffect(() => {
-    loadProducts();
+  // Se houver profile, busca por cidade; senão busca todos
     loadCustomers();
-  }, []);
-
+    if (city) {
+      // loadProducts();
+      fetchProducts(city)
+      // fetchProductsByCity(city);
+    } else {
+      fetchAllProducts();
+    }
+}, [profile])
   const loadCustomers = async () => {
     try {
       const allCustomers = await db.customers.toArray();
@@ -51,18 +64,119 @@ const PDV = () => {
       console.error('Erro ao carregar clientes:', error);
     }
   };
+const fetchProducts = async (ownerId: string) => {
+  try {
+    // 1️⃣ Buscar o restaurante do dono
+    const { data: restaurant, error: restaurantError } = await supabase
+      .from('restaurants')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .maybeSingle();
 
-  const loadProducts = async () => {
+    if (restaurantError) throw restaurantError;
+
+    if (!restaurant) {
+      console.warn('Nenhum restaurante encontrado para este dono.');
+      setProducts([]);
+      return;
+    }
+
+    const restaurantId = restaurant.id;
+
+    // 2️⃣ Buscar produtos do restaurante
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .order('display_order', { ascending: true });
+
+    if (productsError) throw productsError;
+
+    setProducts(productsData || []);
+  } catch (err: any) {
+    console.error('Erro ao buscar produtos:', err.message);
+    setProducts([]);
+  }
+};
+
+  // const loadProducts = async () => {
+  //   try {
+  //   // setIsLoading(true);
+  //   const { data, error } = await supabase
+  //     .from("products")
+  //     .select(`
+  //       id,
+  //       name,
+  //       description,
+  //       price,
+  //       image_url,
+  //       restaurant:restaurants!inner(id, name, delivery_fee, city, status, is_open)
+  //     `)
+  //     .eq("restaurant.city", city)
+  //     .eq("restaurant.is_open", true)
+  //     .limit(12);
+
+  //   if (error) throw error;
+
+  //   setProducts(data || []);
+  // } catch (error) {
+  //   console.error("Error fetching products by city:", error);
+  // } finally {
+  //   // setIsLoading(false);
+  // }
+  // };
+  const fetchProductsByCity = async (id: string) => {
     try {
-      const allProducts = await db.products.toArray();
-      setProducts(allProducts);
+        // setIsLoading(true);
+        const { data, error } = await supabase
+          .from('restaurants')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        
+        if (error) throw error;
+        
+        if (!data) {
+          throw new Error('Restaurante não encontrado');
+        }
+        
+        // setRestaurant(data);
+      } catch (error) {
+        console.error('Error fetching restaurant:', error);
+        toast({
+          title: "Erro",
+          description: "Restaurante não encontrado",
+          variant: "destructive"
+        });
+        // navigate('/restaurants');
+      } finally {
+        // setIsLoading(false);
+      }
+  };
+
+  const fetchAllProducts = async () => {
+    try {
+      // setIsLoading(true);
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          image_url,
+          restaurant:restaurants!inner(id, name, delivery_fee, city, status, is_open)
+        `)
+        .eq("restaurant.is_open", true)
+        .limit(12);
+
+      if (error) throw error;
+
+      setProducts(data || []);
     } catch (error) {
-      console.error('Erro ao carregar produtos:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os produtos.",
-        variant: "destructive",
-      });
+      console.error("Error fetching all products:", error);
+    } finally {
+      // setIsLoading(false);
     }
   };
 
@@ -243,7 +357,7 @@ const PDV = () => {
       setDiscount(0);
       setSelectedCustomer(null);
       setInstallments(1);
-      await loadProducts();
+      // await fetchAllProducts();
 
       toast({
         title: "Venda finalizada!",

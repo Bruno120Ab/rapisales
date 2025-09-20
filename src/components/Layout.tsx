@@ -13,6 +13,7 @@ import {
   LogOut,
   RotateCcw
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -22,10 +23,11 @@ interface LayoutProps {
 const Layout = ({ children, onLogout }: LayoutProps) => {
   const location = useLocation();
   const currentUser = authService.getCurrentUser();
+  const { user , profile } = useAuth();
 
   const navigation = [
     { name: 'PDV', href: '/', icon: ShoppingCart, permission: 'vendas' },
-    { name: 'Estoque', href: '/estoque', icon: Package, permission: 'estoque' },
+    { name: 'RapiDelivery', href: '/estoque', icon: Package, permission: 'estoque' },
     { name: 'Relatórios', href: '/relatorios', icon: BarChart3, permission: 'relatorios' },
     { name: 'Devoluções', href: '/devolucoes', icon: RotateCcw, permission: 'vendas' },
     { name: 'Clientes', href: '/clientes', icon: Users, permission: 'configuracoes' },
@@ -36,6 +38,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
 
   ].filter(item => authService.hasPermission(item.permission as any));
 
+  // console.log(user.user_metadata.restaurantData.name)
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -49,7 +52,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
     className="h-16 w-16 rounded-full object-cover"
   />
   <h1 className="text-3xl font-bold text-foreground">
-    Boutique da Thaina
+    {user?.user_metadata.restaurantData.name}
   </h1>
 </div>
 
@@ -57,8 +60,8 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-sm text-muted-foreground">
-              Usuário: <span className="font-medium">{currentUser?.username}</span>
-              {currentUser?.role === 'admin' && <span className="text-primary"> (Thainá)</span>}
+              Usuário: <span className="font-medium">{profile?.name}</span>
+              {currentUser?.role === 'admin' && <span className="text-primary"> (Admin)</span>}
             </div>
             <Button 
               variant="ghost" 

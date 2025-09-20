@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { authService } from '@/lib/auth';
 import { User, Lock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LoginProps {
   onLogin: () => void;
@@ -17,37 +18,53 @@ const Login = ({ onLogin }: LoginProps) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  e.preventDefault();
+  setIsLoading(true);
 
-    try {
-      const user = await authService.login(username, password);
-      
-      if (user) {
-        toast({
-          title: "Login realizado!",
-          description: `Bem-vindo, ${user.username}!`,
-          variant: "default",
-        });
-        onLogin();
-      } else {
-        toast({
-          title: "Erro no login",
-          description: "Usuário ou senha incorretos.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Erro no login:', error);
+  try {
+    // Chamada ao Supabase só pra checar se o usuário existe
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: username,
+      password,
+    });
+
+    if (error) {
       toast({
-        title: "Erro",
-        description: "Não foi possível realizar o login.",
+        title: "Erro no login",
+        description: error.message || "Usuário ou senha incorretos.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+    } else if (data.user) {
+      // Força admin
+      const adminUser = {
+        id: Number(data.user.id),
+        username: data.user.email || username,
+        role: "admin", // tudo liberado
+      };
+
+      localStorage.setItem('currentUser', JSON.stringify(adminUser));
+
+      toast({
+        title: "Login realizado!",
+        description: `Bem-vindo, ${adminUser.username}!`,
+        variant: "default",
+      });
+
+      // Aqui você pode recarregar a página pra entrar no app
+      window.location.reload();
     }
-  };
+  } catch (err) {
+    console.error(err);
+    toast({
+      title: "Erro",
+      description: "Não foi possível realizar o login.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10 p-4">
@@ -56,7 +73,7 @@ const Login = ({ onLogin }: LoginProps) => {
           <div className="mx-auto w-12 h-12 bg-primary rounded-full flex items-center justify-center">
             <User className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Sistema PDV</h1>
+          <h1 className="text-2xl font-bold text-foreground">RapiSale</h1>
           <p className="text-muted-foreground">ERP Completo</p>
         </div>
 
