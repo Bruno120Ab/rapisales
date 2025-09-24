@@ -138,7 +138,6 @@ export const sendBackupToDriveAndLocal = async () => {
 // Cria o formulário apontando para o iframe
   const form = document.createElement("form");
   form.method = "POST";
-  form.action = "https://script.google.com/macros/s/AKfycbzQ3oSbgMeFLRBoq-rdJ0LxZvzwEQtDOFzKEvBXvcJ_pUJBZ6fOjX06Yi93XnyfC7ju/exec";
   form.target = iframe.name = "hidden_iframe";
 
   // Adiciona os dados

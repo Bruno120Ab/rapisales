@@ -26,6 +26,9 @@ import { setupPWAInstallPrompt } from '@/pwa';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
+
+import { useNavigate } from "react-router-dom";
+
 interface CartItem extends SaleItem {
   stock: number;
 }
@@ -41,6 +44,14 @@ const PDV = () => {
   const [installments, setInstallments] = useState(1);
   const { user, profile } = useAuth();
 
+  const navigate = useNavigate();
+
+  // 🚨 Verifica login ao montar
+  useEffect(() => {
+    if (!user) {
+      navigate("/login", { replace: true });
+    }
+  }, [user, navigate]);
   const city = profile?.id
 1
   console.log(profile?.id)
