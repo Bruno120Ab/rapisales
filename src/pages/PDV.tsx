@@ -42,18 +42,20 @@ const PDV = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<number | null>(null);
   const [installments, setInstallments] = useState(1);
-  const { user, profile } = useAuth();
+  const { user, profile, isLoading } = useAuth();
 
   const navigate = useNavigate();
 
-  // 🚨 Verifica login ao montar
+
+  // Redireciona para login se não estiver logado
   useEffect(() => {
-    if (!user) {
+    if (!isLoading && !user) {
       navigate("/login", { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, isLoading, navigate]);
+
   const city = profile?.id
-1
+
   console.log(profile?.id)
 
   useEffect(() => {
@@ -67,6 +69,8 @@ const PDV = () => {
       fetchAllProducts();
     }
 }, [profile])
+
+
   const loadCustomers = async () => {
     try {
       const allCustomers = await db.customers.toArray();

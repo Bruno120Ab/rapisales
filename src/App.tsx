@@ -20,7 +20,7 @@ import { useAutoBackup } from "./lib/useAuto";
 import { setupPWAInstallPrompt } from "./pwa";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import OrderManagement from "./pages/Estoque";
-import { AtendimentoMesaDashboard } from "./pages/Devolucoes";
+import Devolucoes from "./pages/Devolucoes";
 
 const queryClient = new QueryClient();
 
@@ -102,7 +102,7 @@ const App = () => {
               <Route path="/" element={<PDV />} />
               <Route path="/estoque" element={<OrderManagement />} />
               <Route path="/relatorios" element={<Relatorios />} />
-              <Route path="/devolucoes" element={<AtendimentoMesaDashboard />} />
+              <Route path="/devolucoes" element={<Devolucoes />} />
               <Route path="/credores" element={<Credores />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/configuracoes" element={<Configuracoes />} />

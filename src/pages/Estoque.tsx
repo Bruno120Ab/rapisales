@@ -374,7 +374,110 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link, useNavigate } from 'react-router-dom';
-import { useOrders } from '@/hooks/useOrders';
+import { Order, useOrders } from '@/hooks/useOrders';
+import { MotoButtonExample } from '@/components/Buttondelivery';
+const printCountMap: Record<string, number> = {};
+
+const printThermalOrderForDelivery = (order: Order) => {
+  if (!printCountMap[order.id]) {
+    printCountMap[order.id] = 1;
+  } else {
+    printCountMap[order.id] += 1;
+  }
+
+  const currentPrintNumber = printCountMap[order.id];
+  const isFirstPrint = currentPrintNumber === 1 ? 'Sim' : 'Não';
+
+  const printWindow = window.open('', '', 'width=350,height=800');
+  if (!printWindow) return;
+
+  const printDate = new Date();
+  const formattedDate = printDate.toLocaleString('pt-BR');
+
+  const restaurant = order.restaurant;
+  const restaurantName = restaurant?.name || 'Restaurante';
+  // const restaurantOwner = restaurant?.owner_name || 'Proprietário não informado';
+
+  // Informações do cliente
+ // Informações do cliente com campo de pagamento
+const clientInfo = `
+Cliente: ${order.customer?.name || 'Não informado'}
+Tel: ${order.customer?.phone || 'Não informado'}
+Endereço: ${order.delivery_address}
+Pagamento: ${order.payment_method}
+Pagamento recebido: [  ]  (marque se já foi pago)
+`;
+
+
+  // Produtos detalhados
+  const itemsLines = order.order_items?.map(item => {
+    const unitPrice = item.unit_price;
+    const addonsLines = item.addons?.map(a => {
+      const totalAddon = a.unit_price * a.quantity;
+      return `   + ${a.addon?.name.padEnd(15)} R$${a.unit_price.toFixed(2).padStart(6)} x${a.quantity} = R$${totalAddon.toFixed(2).padStart(6)}`;
+    }).join('\n') || '';
+
+    const itemTotal = (unitPrice + (item.addons?.reduce((sum, a) => sum + a.unit_price * a.quantity, 0) || 0)) * item.quantity;
+    const observations = item.observations ? `   Obs: ${item.observations}` : '';
+
+    return `
+${item.product?.name.padEnd(20)} | Qtd: ${String(item.quantity).padStart(2)} | Unit: R$${unitPrice.toFixed(2).padStart(6)} | Total: R$${itemTotal.toFixed(2).padStart(6)}
+${addonsLines ? addonsLines + '\n' : ''}${observations ? observations + '\n' : ''}
+`;
+  }).join('\n');
+
+  // Subtotais e frete
+  const subtotal = order.total_amount - (order.delivery_fee || 0);
+  const frete = order.delivery_fee || 0;
+  const total = order.total_amount;
+
+  // Informações para entregador
+  const deliveryInfo = `
+=== INFORMAÇÕES PARA ENTREGADOR ===
+Cliente: ${order.customer?.name || 'Não informado'}
+Tel: ${order.customer?.phone || 'Não informado'}
+Endereço: ${order.delivery_address}
+${order.observations ? `Observações: ${order.observations}` : ''}
+`;
+
+  printWindow.document.write(`
+<html>
+<head>
+<title>Pedido #${order.id.slice(0,8)}</title>
+<style>
+  body { font-family: monospace; padding: 5px; font-size: 12px; line-height: 1.3; white-space: pre-wrap; }
+  h1 { text-align: center; font-size: 16px; margin-bottom: 5px; }
+  hr { border: none; border-top: 1px dashed #000; margin: 5px 0; }
+  .center { text-align: center; }
+  .right { text-align: right; }
+  .bold { font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="center bold">Pedido #${currentPrintNumber}</div>
+<hr/>
+<div>${clientInfo}</div>
+<hr/>
+${itemsLines}
+<hr/>
+<div>${deliveryInfo}</div>
+<hr/>
+<div class="right">Subtotal: R$ ${subtotal.toFixed(2)}</div>
+<div class="right">Frete:    R$ ${frete.toFixed(2)}</div>
+<div class="right bold">TOTAL:    R$ ${total.toFixed(2)}</div>
+<hr/>
+<div>${restaurantName}</div>
+<div>Impresso em: ${formattedDate}</div>
+<div>Primeira impressão: ${isFirstPrint}</div>
+<hr/>
+<div class="center bold">RapiDelivery</div>
+</body>
+</html>
+  `);
+
+  printWindow.document.close();
+  printWindow.print();
+};
 
 const OrderManagement = () => {
   const { profile, restaurant } = useAuth();
@@ -602,17 +705,36 @@ const filteredOrders = useMemo(() => {
                   <CardContent className="px-6 py-4 space-y-4">
                     {/* Cliente */}
                     <div className="flex items-center justify-between bg-gray-100 rounded-xl p-3">
-                      <div className="flex items-center gap-3">
-                        <User className="h-5 w-5 text-gray-500" />
-                        <div>
-                          <p className="text-sm font-semibold">{order.customer?.name}</p>
-                          <p className="text-xs text-gray-500">{order.customer?.phone}</p>
-                        </div>
-                      </div>
-                      <Button size="sm" className="bg-green-500 hover:bg-green-600 text-white rounded-lg" onClick={() => openWhatsApp(order)}>
-                        <Phone className="h-4 w-4 mr-1" /> WhatsApp
-                      </Button>
+                    <div className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-gray-500" />
+                    <div>
+                    <p className="text-sm font-semibold">{order.customer?.name}</p>
+                    <p className="text-xs text-gray-500">{order.customer?.phone}</p>
                     </div>
+                    </div>
+
+                    {/* Agrupa os botões juntos */}
+                    <div className="flex flex-wrap items-center gap-2">
+  <Button
+    size="sm"
+    variant="outline"
+    className="flex-1 sm:flex-none"
+    onClick={() => printThermalOrderForDelivery(order)}
+  >
+    🖨️ Imprimir pedido
+  </Button>
+
+  <Button
+    size="sm"
+    className="bg-green-500 hover:bg-green-600 text-white rounded-lg flex-1 sm:flex-none"
+    onClick={() => openWhatsApp(order)}
+  >
+    <Phone className="h-4 w-4 mr-1" /> WhatsApp Cliente
+  </Button>
+</div>
+
+                    </div>
+
 
                     {/* Endereço */}
                     <div className="flex items-start gap-3 bg-gray-100 rounded-xl p-3">
@@ -654,19 +776,38 @@ const filteredOrders = useMemo(() => {
 
                     {/* Status Update */}
                     {order.status !== "delivered" && order.status !== "cancelled" && (
-                      <div className="pt-4">
-                        <Label className="text-sm font-medium">Atualizar status:</Label>
-                        <Select value={order.status} onValueChange={(value) => handleStatusUpdate(order.id, value as Order["status"])}>
-                          <SelectTrigger className="mt-2 w-full border-gray-300 rounded-lg">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {["pending", "confirmed", "preparing", "ready", "delivering", "delivered", "cancelled"].map((status) => (
-                              <SelectItem key={status} value={status}>{getStatusText(status)}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                     <div className="pt-4">
+  <Label className="text-sm font-medium">Atualizar status:</Label>
+
+  <div className="mt-2 flex items-center gap-2">
+    <Select
+      value={order.status}
+      onValueChange={(value) => handleStatusUpdate(order.id, value as Order["status"])}
+    >
+      <SelectTrigger className="w-full border-gray-300 rounded-lg">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {[
+          "pending",
+          "confirmed",
+          "preparing",
+          "ready",
+          "delivering",
+          "delivered",
+          "cancelled",
+        ].map((status) => (
+          <SelectItem key={status} value={status}>
+            {getStatusText(status)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    <MotoButtonExample order={order} />
+  </div>
+</div>
+
                     )}
                   </CardContent>
                 </Card>
