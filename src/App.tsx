@@ -14,13 +14,13 @@ import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
 import Credores from "./pages/Credores";
 import Clientes from "./pages/Clientes";
-import Devolucoes from "./pages/Devolucoes";
 import NotFound from "./pages/NotFound";
 import ContasPagar from "./pages/ContasPagarReceber";
 import { useAutoBackup } from "./lib/useAuto";
 import { setupPWAInstallPrompt } from "./pwa";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import OrderManagement from "./pages/Estoque";
+import { AtendimentoMesaDashboard } from "./pages/Devolucoes";
 
 const queryClient = new QueryClient();
 
@@ -102,7 +102,7 @@ const App = () => {
               <Route path="/" element={<PDV />} />
               <Route path="/estoque" element={<OrderManagement />} />
               <Route path="/relatorios" element={<Relatorios />} />
-              <Route path="/devolucoes" element={<Devolucoes />} />
+              <Route path="/devolucoes" element={<AtendimentoMesaDashboard />} />
               <Route path="/credores" element={<Credores />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
