@@ -115,10 +115,6 @@ export const useOrders = () => {
           .eq('id', order.customer_id)
           .single();
 
-        console.log('Customer:', customer, 'Error:', error);
-
-          console.log(`Profile - ${customer}`)
-          console.log(`Order_Id ${order.customer_id}`)
           // Process order items with proper addon mapping
           const processedOrderItems = order.order_items?.map((item: any) => ({
             ...item,

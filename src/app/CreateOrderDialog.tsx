@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Minus, ShoppingCart, User, Users } from "lucide-react";
 import { MenuItem, Table } from "./database";
 import { useMenuItems } from "./useDatabase";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 interface CreateOrderDialogProps {
   open: boolean;
@@ -41,6 +44,9 @@ export const CreateOrderDialog = ({
   const [selectedTableId, setSelectedTableId] = useState<number>(selectedTable?.id || 0);
   const [selectedItems, setSelectedItems] = useState<MenuItem[]>([]);
   const { menuItems } = useMenuItems();
+  const [products, setProducts] = useState<any[]>([]);
+  const { user, profile, isLoading } = useAuth();
+  const city = profile?.id
 
   // Group menu items by category
   const menuCategories = menuItems.reduce((acc, item) => {
@@ -57,6 +63,17 @@ export const CreateOrderDialog = ({
     }
   }, [selectedTable]);
 
+    useEffect(() => {
+    // Se houver profile, busca por cidade; senão busca todos
+
+      if (city) {
+        // loadProducts();
+        fetchProducts(city)
+        // fetchProductsByCity(city);
+      } else {
+        fetchAllProducts();
+      }
+  }, [profile])
   const availableTables = tables.filter(t => t.status === 'available');
 
   const addItem = (item: MenuItem) => {
@@ -116,6 +133,67 @@ export const CreateOrderDialog = ({
     setSelectedTableId(selectedTable?.id || 0);
     onOpenChange(false);
   };
+
+  const fetchProducts = async (ownerId: string) => {
+    try {
+      // 1️⃣ Buscar o restaurante do dono
+      const { data: restaurant, error: restaurantError } = await supabase
+        .from('restaurants')
+        .select('*')
+        .eq('owner_id', ownerId)
+        .maybeSingle();
+  
+      if (restaurantError) throw restaurantError;
+  
+      if (!restaurant) {
+        console.warn('Nenhum restaurante encontrado para este dono.');
+        setProducts([]);
+        return;
+      }
+  
+      const restaurantId = restaurant.id;
+  
+      // 2️⃣ Buscar produtos do restaurante
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('display_order', { ascending: true });
+  
+      if (productsError) throw productsError;
+  
+      setProducts(productsData || []);
+    } catch (err: any) {
+      console.error('Erro ao buscar produtos:', err.message);
+      setProducts([]);
+    }
+  };
+
+   const fetchAllProducts = async () => {
+      try {
+        // setIsLoading(true);
+        const { data, error } = await supabase
+          .from("products")
+          .select(`
+            id,
+            name,
+            description,
+            price,
+            image_url,
+            restaurant:restaurants!inner(id, name, delivery_fee, city, status, is_open)
+          `)
+          .eq("restaurant.is_open", true)
+          .limit(12);
+  
+        if (error) throw error;
+  
+        setProducts(data || []);
+      } catch (error) {
+        console.error("Error fetching all products:", error);
+      } finally {
+        // setIsLoading(false);
+      }
+    };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -234,33 +312,61 @@ export const CreateOrderDialog = ({
           {/* Menu Items */}
           <div className="space-y-4">
             <h3 className="font-semibold">Cardápio</h3>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {Object.entries(menuCategories).map(([category, items]) => (
-                
-                <div key={category}>
-                  <h4 className="font-medium text-sm text-muted-foreground mb-2">{category}</h4>
-                  <div className="space-y-2">
-                    {items.map((item) => (
-                      <Card key={item.id} className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => addItem(item)}>
-                        <CardContent className="p-3">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <span className="font-medium">{item.name}</span>
-                              <div className="text-sm text-success font-bold">
-                                R$ {item.price.toFixed(2)}
-                              </div>
-                            </div>
-                            <Button variant="outline" size="sm">
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+  {products.map((product) => {
+    const isAvailable = product.available;
+
+    return (
+      <div key={product.id} className="relative">
+        <Card
+          className={cn(
+            "flex items-center gap-3 p-3 transition-all rounded-lg",
+            !isAvailable
+              ? "opacity-50 cursor-not-allowed"
+              : "cursor-pointer hover:bg-accent/50"
+          )}
+          onClick={() => isAvailable && addItem(product)}
+        >
+          {/* Imagem à esquerda */}
+          <div className="w-16 h-16 flex-shrink-0 overflow-hidden rounded bg-gray-100 flex items-center justify-center">
+            {product.image_url ? (
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <span className="text-gray-400 text-xs">Sem imagem</span>
+            )}
+          </div>
+
+          {/* Nome e preço */}
+          <div className="flex-1 flex flex-col justify-center">
+            <span className="font-medium">{product.name}</span>
+            <span className="text-sm text-success font-bold">
+              R$ {product.price.toFixed(2)}
+            </span>
+          </div>
+
+          {/* Botão adicionar */}
+          {isAvailable && (
+            <Button variant="outline" size="sm">
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
+        </Card>
+
+        {/* Overlay de Fora de Estoque */}
+        {!isAvailable && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg pointer-events-none">
+            <span className="text-white font-bold text-sm">Fora de estoque</span>
+          </div>
+        )}
+      </div>
+    );
+  })}
+</div>
+
           </div>
         </div>
 

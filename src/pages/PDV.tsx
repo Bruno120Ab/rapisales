@@ -198,9 +198,10 @@ const fetchProducts = async (ownerId: string) => {
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.barcode?.includes(searchTerm) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    product.category.toLowerCase().includes(searchTerm.toLowerCase()) 
   );
 
+  console.log(filteredProducts)
   const addToCart = (product: Product) => {
     const existingItem = cart.find(item => item.productId === product.id!);
     
@@ -423,41 +424,61 @@ const fetchProducts = async (ownerId: string) => {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
-            {filteredProducts.map((product) => (
-             <Card
-  key={product.id}
-  className={cn(
-    "p-4 cursor-pointer transition-all hover:shadow-md",
-    product.stock <= 0 && "opacity-50"
-  )}
-  onClick={() => addToCart(product)}
->
-  {/* Imagem do Produto */}
-  {product.image_url && (
-    <img
-      src={product.image_url}
-      alt={product.name}
-      className="w-full h-32 object-cover rounded mb-2"
-    />
-  )}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto">
+  {filteredProducts.map((product) => {
+    const isAvailable = product.available;
 
-  <div className="flex justify-between items-start mb-2">
-    <h3 className="font-semibold text-sm">{product.name}</h3>
-  </div>
-  <p className="text-xs text-muted-foreground mb-2">{product.category}</p>
-  <div className="flex justify-between items-center">
-    <span className="text-lg font-bold text-primary">
-      {formatCurrency(product.price)}
-    </span>
-    {product.stock > 0 && (
-      <Plus className="h-4 w-4 text-muted-foreground" />
-    )}
-  </div>
-</Card>
-
-            ))}
+    return (
+      <div key={product.id} className="relative">
+        {/* Card clicável somente se disponível */}
+        <Card
+          className={cn(
+            "p-4 transition-all rounded-lg bg-white",
+            !isAvailable ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-lg"
+          )}
+          onClick={() => isAvailable && addToCart(product)}
+        >
+          {/* Imagem do Produto */}
+          <div className="w-full aspect-[4/3] overflow-hidden rounded mb-2 bg-gray-100 flex items-center justify-center">
+            {product.image_url ? (
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <span className="text-gray-400 text-sm">Sem imagem</span>
+            )}
           </div>
+
+          {/* Nome e categoria */}
+          <div className="flex justify-between items-start mb-1">
+            <h3 className="font-semibold text-sm">{product.name}</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">{product.category}</p>
+
+          {/* Preço e ícone */}
+          <div className="flex justify-between items-center">
+            <span className="text-lg font-bold text-primary">
+              {formatCurrency(product.price)}
+            </span>
+            {isAvailable && (
+              <Plus className="h-5 w-5 text-green-500 hover:text-green-600 transition-colors" />
+            )}
+          </div>
+        </Card>
+
+        {/* Overlay de Fora de Estoque */}
+        {!isAvailable && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg pointer-events-none">
+            <span className="text-white font-bold text-sm">Fora de estoque</span>
+          </div>
+        )}
+      </div>
+    );
+  })}
+</div>
+
         </div>
 
         {/* Cart Section */}
