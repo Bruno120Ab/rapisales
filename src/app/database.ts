@@ -1,8 +1,9 @@
+import { supabase } from "@/integrations/supabase/client";
+
 // IndexedDB Database Service
 export interface Table {
   id: number;
   number: string;
-  seats: number;
   status: 'available' | 'occupied' | 'reserved' | 'cleaning';
   customers?: number;
   orderId?: string;
@@ -241,47 +242,118 @@ class DatabaseService {
   }
 
   // Initialize default data
-  async initializeDefaultData(): Promise<void> {
-    const tables = await this.getTables();
-    if (tables.length === 0) {
-      const defaultTables: Table[] = [
-        { id: 1, number: "01", seats: 2, status: 'available' },
-        { id: 2, number: "02", seats: 4, status: 'available' },
-        { id: 3, number: "03", seats: 4, status: 'available' },
-        { id: 4, number: "04", seats: 6, status: 'available' },
-        { id: 5, number: "05", seats: 2, status: 'available' },
-        { id: 6, number: "06", seats: 4, status: 'available' },
-        { id: 7, number: "07", seats: 8, status: 'available' },
-        { id: 8, number: "08", seats: 2, status: 'available' },
-        { id: 9, number: "09", seats: 4, status: 'available' },
-        { id: 10, number: "10", seats: 6, status: 'available' },
-        { id: 11, number: "11", seats: 4, status: 'available' },
-        { id: 12, number: "12", seats: 2, status: 'available' },
-      ];
+  // async initializeDefaultData(): Promise<void> {
+  //   const tables = await this.getTables();
+  //   if (tables.length === 0) {
+  //     const defaultTables: Table[] = [
+  //       { id: 1, number: "01",  status: 'available' },
+  //       { id: 2, number: "02",  status: 'available' },
+  //       { id: 3, number: "03", status: 'available' },
+  //       { id: 4, number: "04",  status: 'available' },
+  //       { id: 5, number: "05",  status: 'available' },
+  //       { id: 6, number: "06",  status: 'available' },
+  //       { id: 7, number: "07",  status: 'available' },
+  //       { id: 8, number: "08", status: 'available' },
+  //       { id: 9, number: "09",  status: 'available' },
+  //       { id: 10, number: "10",  status: 'available' },
+  //       { id: 11, number: "11",  status: 'available' },
+  //       { id: 12, number: "12",  status: 'available' },
+  //     ];
 
-      for (const table of defaultTables) {
-        await this.updateTable(table);
-      }
-    }
+  //     for (const table of defaultTables) {
+  //       await this.updateTable(table);
+  //     }
+  //   }
 
-    // Initialize menu items
-    const menuItems = await this.getMenuItems();
-    if (menuItems.length === 0) {
-      const defaultMenu: MenuItem[] = [
-        { id: 'item1', name: 'Hambúrguer Artesanal', price: 28.90, category: 'Pratos Principais', quantity: 1 },
-        { id: 'item2', name: 'Pizza Margherita', price: 32.00, category: 'Pratos Principais', quantity: 1 },
-        { id: 'item3', name: 'Salada Caesar', price: 22.50, category: 'Saladas', quantity: 1 },
-        { id: 'item4', name: 'Coca-Cola 350ml', price: 8.00, category: 'Bebidas', quantity: 1 },
-        { id: 'item5', name: 'Suco Natural Laranja', price: 12.00, category: 'Bebidas', quantity: 1 },
-        { id: 'item6', name: 'Tiramisu', price: 18.00, category: 'Sobremesas', quantity: 1 },
-      ];
+  //   // Initialize menu items
+  //   const menuItems = await this.getMenuItems();
+  //   if (menuItems.length === 0) {
+  //     const defaultMenu: MenuItem[] = [
+  //       { id: 'item1', name: 'Hambúrguer Artesanal', price: 28.90, category: 'Pratos Principais', quantity: 1 },
+  //       { id: 'item2', name: 'Pizza Margherita', price: 32.00, category: 'Pratos Principais', quantity: 1 },
+  //       { id: 'item3', name: 'Salada Caesar', price: 22.50, category: 'Saladas', quantity: 1 },
+  //       { id: 'item4', name: 'Coca-Cola 350ml', price: 8.00, category: 'Bebidas', quantity: 1 },
+  //       { id: 'item5', name: 'Suco Natural Laranja', price: 12.00, category: 'Bebidas', quantity: 1 },
+  //       { id: 'item6', name: 'Tiramisu', price: 18.00, category: 'Sobremesas', quantity: 1 },
+  //     ];
 
-      const store = await this.getStore('menuItems', 'readwrite');
-      for (const item of defaultMenu) {
-        store.add(item);
-      }
+  //     const store = await this.getStore('menuItems', 'readwrite');
+  //     for (const item of defaultMenu) {
+  //       store.add(item);
+  //     }
+  //   }
+  // }
+  async initializeDefaultData(ownerId: string): Promise<void> {
+  // 1️⃣ Inicializa mesas padrão se não tiver nenhuma
+  const tables = await this.getTables();
+  if (tables.length === 0) {
+    const defaultTables: Table[] = [
+      { id: 1, number: "01", status: 'available' },
+      { id: 2, number: "02", status: 'available' },
+      { id: 3, number: "03", status: 'available' },
+      { id: 4, number: "04", status: 'available' },
+      { id: 5, number: "05", status: 'available' },
+      { id: 6, number: "06", status: 'available' },
+      { id: 7, number: "07", status: 'available' },
+      { id: 8, number: "08", status: 'available' },
+      { id: 9, number: "09", status: 'available' },
+      { id: 10, number: "10", status: 'available' },
+      { id: 11, number: "11", status: 'available' },
+      { id: 12, number: "12", status: 'available' },
+    ];
+
+    for (const table of defaultTables) {
+      await this.updateTable(table);
     }
   }
+
+  // 2️⃣ Buscar produtos do Supabase
+  try {
+    // Buscar restaurante do dono
+    const { data: restaurant, error: restaurantError } = await supabase
+      .from('restaurants')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .maybeSingle();
+
+    if (restaurantError) throw restaurantError;
+
+    if (!restaurant) {
+      console.warn('Nenhum restaurante encontrado para este dono.');
+      return; // Sem produtos
+    }
+
+    const restaurantId = restaurant.id;
+
+    // Buscar produtos do restaurante
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .order('display_order', { ascending: true });
+
+    if (productsError) throw productsError;
+
+    // Salvar produtos no IndexedDB
+    const store = await this.getStore('menuItems', 'readwrite');
+    if (productsData && productsData.length > 0) {
+      for (const item of productsData) {
+        store.add({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          category: item.category_id,
+          quantity: 1, // default quantity
+        });
+      }
+    } else {
+      console.warn('Nenhum produto encontrado no Supabase.');
+    }
+  } catch (err: any) {
+    console.error('Erro ao buscar produtos do Supabase:', err.message);
+  }
+}
+
 }
 
 export const database = new DatabaseService();

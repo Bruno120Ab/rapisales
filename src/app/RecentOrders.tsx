@@ -82,23 +82,23 @@ export const RecentOrders = () => {
                 </div>
               </div>
               
-              <Button 
+              {/* <Button 
                 variant="ghost" 
                 size="sm"
                 className="hover:bg-primary/10 hover:text-primary"
               >
                 <Eye className="h-4 w-4" />
-              </Button>
+              </Button> */}
             </div>
           );
         })}
         
-        <Button 
+        {/* <Button 
           variant="outline" 
           className="w-full mt-4 hover:bg-primary/5 hover:border-primary hover:text-primary"
         >
           Ver Todas as Comandas
-        </Button>
+        </Button> */}
       </CardContent>
     </Card>
   );

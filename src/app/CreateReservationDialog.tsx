@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar, Clock, Users, User, Phone } from "lucide-react";
-import { Table } from "@/lib/database";
+import { Table } from "./database";
 
 interface CreateReservationDialogProps {
   open: boolean;
@@ -40,7 +40,6 @@ export const CreateReservationDialog = ({
   const [notes, setNotes] = useState("");
 
   const availableTables = tables.filter(t => t.status === 'available');
-  const suitableTables = availableTables.filter(t => t.seats >= guests);
 
   const handleSubmit = () => {
     if (!customerName.trim() || !phone.trim() || !date || !time || guests <= 0) {
@@ -168,7 +167,7 @@ export const CreateReservationDialog = ({
             </div>
           </div>
 
-          {suitableTables.length > 0 && (
+          {/* {suitableTables.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="table">Mesa (Opcional)</Label>
               <Select 
@@ -180,15 +179,11 @@ export const CreateReservationDialog = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Sem mesa específica</SelectItem>
-                  {suitableTables.map((table) => (
-                    <SelectItem key={table.id} value={table.id.toString()}>
-                      Mesa {table.number} ({table.seats} lugares)
-                    </SelectItem>
-                  ))}
+                 
                 </SelectContent>
               </Select>
             </div>
-          )}
+          )} */}
 
           <div className="space-y-2">
             <Label htmlFor="notes">Observações</Label>

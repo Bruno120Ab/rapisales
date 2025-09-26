@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Users, User, Clock } from "lucide-react";
-import { Table } from "@/lib/database";
+import { Table } from "./database";
 
 interface TableMapProps {
   tables: Table[];
@@ -90,10 +90,10 @@ export const TableMap = ({ tables, selectedTable, onTableSelect, onCreateOrder }
               </Badge>
               
               {/* Table Info */}
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              {/* <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Users className="h-4 w-4" />
                 {table.seats} lugares
-              </div>
+              </div> */}
               
               {/* Additional Info based on status */}
               {table.status === 'occupied' && table.customers && (

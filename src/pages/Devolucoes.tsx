@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -6,12 +6,14 @@ import { Plus, Clock, Users, CreditCard, Search, DollarSign } from "lucide-react
 import { useDatabase, useOrders, useReservations, useTables } from "@/app/useDatabase";
 import { StatsCards } from "@/app/StatsCards";
 import { TableMap } from "@/app/TableMap";
-import { LiveMetrics } from "@/app/LiveMetrics";
+// import { LiveMetrics } from "@/app/LiveMetrics";
 import { RecentOrders } from "@/app/RecentOrders";
 import { CreateOrderDialog } from "@/app/CreateOrderDialog";
 import { CreateReservationDialog } from "@/app/CreateReservationDialog";
 import { OrderCard } from "@/app/OrderCard";
 import { Input } from "@/components/ui/input";
+import { database } from "@/app/database";
+import { useAuth } from "@/contexts/AuthContext";
 
 // importa os hooks e componentes da sua base
 
@@ -173,7 +175,6 @@ import { Input } from "@/components/ui/input";
 // export default Dashboard;
 
 
-type View = "map" | "orders";
 
 // const Dashboard = () => {
 //   const [selectedTable, setSelectedTable] = useState<number | null>(null);
@@ -359,6 +360,7 @@ type View = "map" | "orders";
 //     </div>
 //   );
 // };
+type View = "map" | "orders";
 
 export const Dashboard = () => {
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
@@ -372,7 +374,24 @@ export const Dashboard = () => {
   const { tables, occupyTable, freeTable } = useTables();
   const { orders, addOrder, updateOrder, deleteOrder } = useOrders();
   const { addReservation } = useReservations();
+  const { profile } = useAuth();
+  const city = profile?.id
 
+useEffect(() => {
+    const initDB = async () => {
+      try {
+        await database.initializeDefaultData(city);
+      } catch (error) {
+        console.error('Failed to initialize database:', error);
+       
+      }
+    };
+
+    initDB();
+  }, []);
+
+
+    
   if (!isInitialized) {
     return (
       <div className="min-h-screen bg-background pt-20 md:pt-8 flex items-center justify-center">
@@ -465,44 +484,80 @@ export const Dashboard = () => {
           </div>
 
           <div className="space-y-8">
-            <LiveMetrics />
+            {/* <LiveMetrics /> */}
             <RecentOrders />
-            <Card>
-              <CardHeader>
-                <CardTitle>Ações Rápidas</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Link to="/orders">
-                  <Button className="w-full justify-start hover:bg-primary/5 hover:border-primary" variant="outline">
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Ver Comandas
-                  </Button>
-                </Link>
-                <Button
-                  className="w-full justify-start hover:bg-secondary/5 hover:border-secondary"
-                  variant="outline"
-                  onClick={() => setShowCreateReservation(true)}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Nova Reserva
-                </Button>
-                <Link to="/orders?status=ready">
-                  <Button className="w-full justify-start hover:bg-warning/5 hover:border-warning" variant="outline">
-                    <Clock className="h-4 w-4 mr-2" />
-                    Pedidos Prontos
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
           </div>
         </div>
       ) : (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Seus Cards de resumo */}
+       
+            <Card>
+          <CardHeader>
+          <CardTitle>Filtros e Busca</CardTitle>
+          </CardHeader>
+          <CardContent>
+          <div className="flex flex-wrap gap-2 mb-4">
+          <Button
+          variant={statusFilter === "all" ? "default" : "outline"}
+          onClick={() => setStatusFilter("all")}
+          >
+          Todas
+          </Button>
+          <Button
+          variant={statusFilter === "pending" ? "default" : "outline"}
+          onClick={() => setStatusFilter("pending")}
+          >
+          Pendentes
+          ({orders.filter( p => p.status == 'pending').length})
+          </Button>
+
+          <Button
+          variant={statusFilter === "preparing" ? "default" : "outline"}
+          onClick={() => setStatusFilter("preparing")}
+          >
+          Preparando
+          ({orders.filter( p => p.status == 'preparing').length})
+          </Button>
+          <Button
+          variant={statusFilter === "ready" ? "default" : "outline"}
+          onClick={() => setStatusFilter("ready")}
+          >
+          Prontos
+          ({orders.filter( p => p.status == 'ready').length})
+          </Button>
+          <Button
+          variant={statusFilter === "served" ? "default" : "outline"}
+          onClick={() => setStatusFilter("served")}
+          >
+          Servidas
+          ({orders.filter( p => p.status == 'served').length})
+          </Button>
+          <Button
+          variant={statusFilter === "paid" ? "default" : "outline"}
+          onClick={() => setStatusFilter("paid")}
+          >
+          Pagos
+          ({orders.filter( p => p.status == 'paid').length})
+          </Button>
+          
           </div>
 
-          <Card>
+          <div className="grid gap-4 max-h-[400px] overflow-y-auto">
+          {filteredOrders.map((order) => (
+          <OrderCard
+            key={order.id}
+            order={order}
+            onUpdate={updateOrder}
+            onDelete={deleteOrder}
+            releaseTable={(tableId) => releaseTable(Number(tableId))}
+          />
+          ))}
+          </div>
+          </CardContent>
+          </Card>
+
+
+          {/* <Card>
             <CardHeader>
               <CardTitle>Filtros e Busca</CardTitle>
             </CardHeader>
@@ -519,7 +574,7 @@ export const Dashboard = () => {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       )}
 

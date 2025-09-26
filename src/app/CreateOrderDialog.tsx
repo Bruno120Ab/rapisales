@@ -144,7 +144,7 @@ export const CreateOrderDialog = ({
                     <SelectItem key={table.id} value={table.id.toString()}>
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4" />
-                        Mesa {table.number} ({table.seats} lugares)
+                        Mesa {table.number} 
                       </div>
                     </SelectItem>
                   ))}

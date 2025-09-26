@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { database, Table, Order, Reservation, MenuItem, Stats } from './database';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+
 
 export const useDatabase = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -10,7 +12,6 @@ export const useDatabase = () => {
     const initDB = async () => {
       try {
         await database.init();
-        await database.initializeDefaultData();
         setIsInitialized(true);
       } catch (error) {
         console.error('Failed to initialize database:', error);
