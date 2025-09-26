@@ -11,7 +11,8 @@ import {
   Store,
   Users,
   LogOut,
-  RotateCcw
+  RotateCcw,
+  Table
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -29,7 +30,7 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
     { name: 'PDV', href: '/', icon: ShoppingCart, permission: 'vendas' },
     { name: 'RapiDelivery', href: '/estoque', icon: Package, permission: 'estoque' },
     { name: 'Relatórios', href: '/relatorios', icon: BarChart3, permission: 'relatorios' },
-    { name: 'Devoluções', href: '/devolucoes', icon: RotateCcw, permission: 'vendas' },
+    { name: 'Mesas', href: '/devolucoes', icon: Table, permission: 'vendas' },
     { name: 'Clientes', href: '/clientes', icon: Users, permission: 'configuracoes' },
     { name: 'Credores', href: '/credores', icon: Users, permission: 'configuracoes' },
     { name: 'Pagar/Receber', href: '/contaspagar', icon: Settings, permission: 'contaspagar' },

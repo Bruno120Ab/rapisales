@@ -425,33 +425,37 @@ const fetchProducts = async (ownerId: string) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
             {filteredProducts.map((product) => (
-              <Card
-                key={product.id}
-                className={cn(
-                  "p-4 cursor-pointer transition-all hover:shadow-md",
-                  product.stock <= 0 && "opacity-50"
-                )}
-                onClick={() => addToCart(product)}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-sm">{product.name}</h3>
-                  <Badge 
-                    variant={product.stock <= product.minStock ? "destructive" : "secondary"}
-                    className="text-xs"
-                  >
-                    {product.stock} un.
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mb-2">{product.category}</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-primary">
-                    {formatCurrency(product.price)}
-                  </span>
-                  {product.stock > 0 && (
-                    <Plus className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-              </Card>
+             <Card
+  key={product.id}
+  className={cn(
+    "p-4 cursor-pointer transition-all hover:shadow-md",
+    product.stock <= 0 && "opacity-50"
+  )}
+  onClick={() => addToCart(product)}
+>
+  {/* Imagem do Produto */}
+  {product.image_url && (
+    <img
+      src={product.image_url}
+      alt={product.name}
+      className="w-full h-32 object-cover rounded mb-2"
+    />
+  )}
+
+  <div className="flex justify-between items-start mb-2">
+    <h3 className="font-semibold text-sm">{product.name}</h3>
+  </div>
+  <p className="text-xs text-muted-foreground mb-2">{product.category}</p>
+  <div className="flex justify-between items-center">
+    <span className="text-lg font-bold text-primary">
+      {formatCurrency(product.price)}
+    </span>
+    {product.stock > 0 && (
+      <Plus className="h-4 w-4 text-muted-foreground" />
+    )}
+  </div>
+</Card>
+
             ))}
           </div>
         </div>
