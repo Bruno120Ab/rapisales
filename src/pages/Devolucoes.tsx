@@ -12,7 +12,7 @@ import { CreateOrderDialog } from "@/app/CreateOrderDialog";
 import { CreateReservationDialog } from "@/app/CreateReservationDialog";
 import { OrderCard } from "@/app/OrderCard";
 import { Input } from "@/components/ui/input";
-import { database } from "@/app/database";
+import { database, Order } from "@/app/database";
 import { useAuth } from "@/contexts/AuthContext";
 import { EditOrderDialog } from "@/app/EditOrderDialog";
 
@@ -370,7 +370,22 @@ export const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [view, setView] = useState<View>("map");
-const [editingOrder, setEditingOrder] = useState<any | null>(null);
+// State para edição
+const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+const [showEditOrder, setShowEditOrder] = useState(false);
+
+// Função para abrir modal de edição
+const handleEditOrder = (order: Order) => {
+  setEditingOrder(order);
+  setShowEditOrder(true);
+};
+
+// Função para atualizar pedido
+const handleUpdateOrder = (updatedOrder: Order) => {
+  updateOrder(updatedOrder); // sua função do hook useOrders()
+  setShowEditOrder(false);
+  setEditingOrder(null);
+};
 
   const { isInitialized } = useDatabase();
   const { tables, occupyTable, freeTable } = useTables();
@@ -438,6 +453,8 @@ useEffect(() => {
     }
   };
 
+  
+
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -480,6 +497,11 @@ useEffect(() => {
                   selectedTable={selectedTable}
                   onTableSelect={setSelectedTable}
                   onCreateOrder={() => setShowCreateOrder(true)}
+                   onOpenOrderDialog={(tableId) => {
+    // Encontrar a comanda da mesa
+    const order = orders.find(o => o.tableId === tableId);
+    if (order) handleEditOrder(order);
+  }}
                 />
               </CardContent>
             </Card>
@@ -589,7 +611,14 @@ useEffect(() => {
         onCreateOrder={handleCreateOrder}
       />
 
-   
+   {editingOrder && (
+  <EditOrderDialog
+    open={showEditOrder}
+    onOpenChange={setShowEditOrder}
+    order={editingOrder}
+    onUpdate={handleUpdateOrder}
+  />
+)}
 
 
       <CreateReservationDialog
