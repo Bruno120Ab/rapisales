@@ -23,6 +23,7 @@ export interface Order {
   status: 'pending' | 'preparing' | 'ready' | 'served' | 'paid';
   waiter: string;
   notes?: string;
+  paymentMethod?: string;
 }
 
 export interface Reservation {

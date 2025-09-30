@@ -240,7 +240,7 @@ export const CreateOrderDialog = ({
               />
             </div>
 
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="waiter">Garçom</Label>
               <Select value={waiter} onValueChange={setWaiter}>
                 <SelectTrigger>
@@ -253,8 +253,16 @@ export const CreateOrderDialog = ({
                   <SelectItem value="João">João</SelectItem>
                 </SelectContent>
               </Select>
+            </div> */}
+            <div className="space-y-2">
+              <Label htmlFor="waiter">Garçom</Label>
+              <Input
+                id="waiter"
+                value={waiter}
+                onChange={(e) => setWaiter(e.target.value)}
+                placeholder="Digite o nome do garçom"
+              />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="notes">Observações</Label>
               <Textarea

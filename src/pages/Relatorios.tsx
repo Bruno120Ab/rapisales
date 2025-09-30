@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,13 @@ import {
   Download,
   User as UserIcon
 } from 'lucide-react';
+import { database, MenuItem, Order, Reservation, Stats, Table } from '@/app/database';
+import { TopProductsCard } from '@/components/TopProducts';
+import { SalesByWaiterCard } from '@/components/SaleByWaiter';
+import { TotalSalesCard } from '@/components/TotalSales';
+import { ProductsSoldCard } from '@/components/ProuctsSales';
+import { TotalRevenueCard } from '@/components/TotalRevenue';
+import { AverageTicketCard } from '@/components/AverageTicket';
 
 const Relatorios = () => {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -24,6 +31,48 @@ const Relatorios = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+
+
+
+  const [tables, setTables] = useState<Table[]>([]);
+const [orders, setOrders] = useState<Order[]>([]);
+const [reservations, setReservations] = useState<Reservation[]>([]);
+const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+const [stats, setStats] = useState<Stats[]>([]);
+
+
+const [selectedWaiter, setSelectedWaiter] = useState('all');
+const [selectedTable, setSelectedTable] = useState('all');
+const [selectedPayment, setSelectedPayment] = useState('all');
+
+
+
+useEffect(() => {
+  const loadDatabaseData = async () => {
+    setLoading(true);
+    try {
+      const [tablesData, ordersData, reservationsData, menuData, statsData] = await Promise.all([
+        database.getTables(),
+        database.getOrders(),
+        database.getReservations(),
+        database.getMenuItems(),
+        database.getStats(),
+      ]);
+
+      setTables(tablesData);
+      setOrders(ordersData);
+      setReservations(reservationsData);
+      setMenuItems(menuData);
+      setStats(statsData);
+    } catch (error) {
+      console.error("Erro ao carregar dados do DB:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadDatabaseData();
+}, []);
 
   useEffect(() => {
     loadData();
@@ -143,6 +192,47 @@ const Relatorios = () => {
     return acc;
   }, {} as Record<string, number>);
 
+  const mappedSales = sales.map(sale => ({
+  ...sale,
+  items: sale.items.map(item => ({
+    id: item.productName, // ou algum id único
+    name: item.productName,
+    price: item.total / item.quantity, // calcula preço unitário
+    category: "Desconhecido", // se não tiver categoria
+    quantity: item.quantity,
+  }))
+}));
+
+const combinedSales = useMemo(() => {
+  // Vendas do PDV
+  const pdvSales = sales.map(sale => ({
+    id: sale.id,
+    customer: 'Cliente PDV', // ou algum campo que faça sentido
+    table: sale.table || '',
+    waiter: sale.waiter || 'Desconhecido',
+    total: sale.total,
+    items: sale.items,
+    paymentMethod: sale.paymentMethod,
+    status: sale.status,
+    createdAt: sale.createdAt,
+  }));
+
+  // Pedidos das mesas
+  const mesaOrders = orders.map(order => ({
+    id: order.id,
+    customer: order.customer,
+    table: order.table,
+    waiter: order.waiter || 'Desconhecido',
+    total: order.total,
+    items: order.items,
+    paymentMethod: order.paymentMethod || 'desconhecido',
+    status: order.status,
+    createdAt: order.time || order.date, // se orders usam `time` e `date`
+  }));
+
+  return [...pdvSales, ...mesaOrders];
+}, [sales, orders]);
+
   const exportData = () => {
     const data = {
       period,
@@ -178,10 +268,15 @@ const Relatorios = () => {
     );
   }
 
+  const waiters = Array.from(new Set(combinedSales.map(s => s.waiter || 'Desconhecido')));
+  const ourTables = Array.from(new Set(combinedSales.map(s => s.table))).filter(Boolean);
+  const ourPayments = Array.from(new Set(combinedSales.map(s => s.paymentMethod))).filter(Boolean);
+
+console.log(combinedSales)
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Relatórios do RapiSale</h1>
+        <h1 className="text-3xl font-bold text-foreground">Relatórios do RapiSales - PDV </h1>
         <div className="flex items-center space-x-4">
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-48">
@@ -216,239 +311,232 @@ const Relatorios = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-success/10 rounded-lg">
-              <DollarSign className="h-6 w-6 text-success" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Receita Total</p>
-              <p className="text-2xl font-bold text-success">
-                {formatCurrency(totalRevenue)}
-              </p>
-            </div>
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <ShoppingCart className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total de Vendas</p>
-              <p className="text-2xl font-bold">{totalSales}</p>
-            </div>
-          </div>
-        </Card>
+        {/* Receita Total */}
+        <TotalRevenueCard sales={sales} orders={orders} />
 
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-info/10 rounded-lg">
-              <TrendingUp className="h-6 w-6 text-info" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Ticket Médio</p>
-              <p className="text-2xl font-bold">
-                {formatCurrency(averageTicket)}
-              </p>
-            </div>
-          </div>
-        </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-accent/10 rounded-lg">
-              <BarChart3 className="h-6 w-6 text-accent" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Produtos Vendidos</p>
-              <p className="text-2xl font-bold">
-                {sales.flatMap(s => s.items).reduce((sum, item) => sum + item.quantity, 0)}
-              </p>
-            </div>
-          </div>
-        </Card>
+        {/* Total de Vendas */}
+      <TotalSalesCard sales={sales} orders={orders} />
+
+        {/* Ticket Médio */}
+      <AverageTicketCard sales={sales} orders={orders} />
+
+        {/* Produtos Vendidos */}
+      <ProductsSoldCard sales={sales} orders={orders} />
+
+        {/* Pedidos do Salão */}
+      <Card className="p-4">
+        <h3 className="text-lg font-semibold mb-4">Pedidos do Salão</h3>
+        <div className="space-y-3 max-h-72 overflow-y-auto">
+          {orders.length > 0 ? (
+            orders.map(order => (
+              <div
+                key={order.id}
+                className="flex justify-between items-center p-3 bg-card hover:bg-card/80 rounded-lg shadow-sm transition-colors"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium text-foreground">{order.customer}</span>
+                  <span className="text-sm text-muted-foreground">{order.table}</span>
+                </div>
+
+                <div className="text-right flex flex-col items-end space-y-1">
+                  <span className="font-semibold text-foreground">{formatCurrency(order.total)}</span>
+
+                  {order.paymentMethod && (
+                    <Badge variant="outline" className="text-xs">
+                      {order.paymentMethod === 'dinheiro'
+                        ? 'Dinheiro'
+                        : order.paymentMethod === 'cartao'
+                        ? 'Cartão'
+                        : 'PIX'}
+                    </Badge>
+                  )}
+                </div>
+
+                <Badge
+                  variant={
+                    order.status === 'pending'
+                      ? 'secondary'
+                      : order.status === 'preparing'
+                      ? 'warning'
+                      : order.status === 'ready'
+                      ? 'info'
+                      : order.status === 'paid'
+                      ? 'success'
+                      : 'destructive'
+                  }
+                  className="capitalize"
+                >
+                  {order.status}
+                </Badge>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-muted-foreground py-8">Nenhum pedido no momento</p>
+          )}
+        </div>
+      </Card>
+
+        {/* Mesas */}
+      <Card className="p-6 bg-background border border-border rounded-xl shadow-sm">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">Mesas</h3>
+
+        <div className="max-h-64 overflow-y-auto space-y-2">
+          {tables.length > 0 ? (
+            tables.map(table => (
+              <div
+                key={table.id}
+                className="flex justify-between items-center p-3 bg-card rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      table.status === 'available'
+                        ? 'bg-success'
+                        : table.status === 'occupied'
+                        ? 'bg-warning'
+                        : 'bg-destructive'
+                    }`}
+                  />
+                  <span className="font-medium text-foreground">Mesa {table.number}</span>
+                </div>
+                <span className="capitalize text-sm text-muted-foreground">{table.status}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-muted-foreground py-8 text-sm">Nenhuma mesa cadastrada</p>
+          )}
+        </div>
+      </Card>
+
+
+        {/* Reservas */}
+      
+
+        {/* Produtos do Menu */}
+
+
+
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Products */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold mb-4">Produtos Mais Vendidos</h3>
-          <div className="space-y-3">
-            {topProducts.map((product, index) => (
-              <div key={product.productName} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <Badge variant="outline">{index + 1}º</Badge>
-                  <div>
-                    <p className="font-medium">{product.productName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {product.quantity} unidades
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium">{formatCurrency(product.revenue)}</p>
-                </div>
-              </div>
-            ))}
-            {topProducts.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhuma venda no período selecionado
-              </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">    
+        <Card className="p-6 bg-background border border-border rounded-xl shadow-sm">
+  <h3 className="text-xl font-semibold mb-4 text-foreground">Vendas Recentes</h3>
+
+  {/* Filtros */}
+  <div className="flex flex-wrap gap-2 mb-4">
+    {/* Garçom */}
+    <select
+      className="border rounded px-3 py-1 text-sm"
+      value={selectedWaiter}
+      onChange={e => setSelectedWaiter(e.target.value)}
+    >
+      <option value="all">Todos os garçons</option>
+      {waiters.map(w => (
+        <option key={w} value={w}>{w}</option>
+      ))}
+    </select>
+
+    {/* Mesa */}
+    <select
+      className="border rounded px-3 py-1 text-sm"
+      value={selectedTable}
+      onChange={e => setSelectedTable(e.target.value)}
+    >
+      <option value="all">Todas as mesas</option>
+      {ourTables.map(t => (
+        <option key={t} value={t}> {t}</option>
+      ))}
+    </select>
+
+    {/* <select
+    className="border rounded px-3 py-1 text-sm"
+    value={selectedPayment}
+    onChange={(e) => setSelectedTable(e.target.value)}
+  >
+  <option value="all">Pagamento</option>
+  {ourPayments.map((t) => (
+    <option key={t} value={t}> {t}</option>
+  ))}
+</select> */}
+
+  <select
+      className="border rounded px-3 py-1 text-sm"
+      value={selectedPayment}
+      onChange={e => setSelectedPayment(e.target.value)}
+    >
+      <option value="all">Pagamentos</option>
+      {ourPayments.map(t => (
+        <option key={t} value={t}> {t}</option>
+      ))}
+    </select>
+  </div>
+
+  {/* Lista de vendas */}
+  <div className="space-y-4 max-h-96 overflow-y-auto">
+    {combinedSales
+      .filter(sale => 
+        (selectedWaiter === 'all' || sale.waiter === selectedWaiter) &&
+        (selectedTable === 'all' || sale.table === selectedTable) &&
+        (selectedPayment === 'all' || sale.paymentMethod === selectedPayment)
+
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt || b.time || '').getTime() -
+          new Date(a.createdAt || a.time || '').getTime()
+      )
+      .slice(0, 10)
+      .map((sale) => (
+        <div
+          key={sale.id}
+          className="flex justify-between items-center p-4 bg-card rounded-lg shadow hover:shadow-md transition-shadow duration-200"
+        >
+          <div className="flex flex-col">
+            <span className="font-medium text-foreground">{sale.customer || 'Cliente Desconhecido'}</span>
+            {sale.table && <span className="text-sm text-muted-foreground">Mesa {sale.table}</span>}
+            <span className="text-xs text-muted-foreground mt-1">
+              {sale.items.length} {sale.items.length === 1 ? 'item' : 'itens'} • Garçom: {sale.waiter || 'Desconhecido'}
+            </span>
+          </div>
+
+          <div className="flex flex-col items-end space-y-1">
+            <span className="font-semibold text-foreground">{formatCurrency(sale.total)}</span>
+            {sale.paymentMethod && (
+              <Badge variant="outline" className="text-xs">
+                {sale.paymentMethod === 'cash' ? 'Dinheiro' : sale.paymentMethod === 'card' ? 'Cartão' : 'PIX'}
+              </Badge>
             )}
           </div>
-        </Card>
 
-        {/* Payment Methods */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold mb-4">Formas de Pagamento</h3>
-          <div className="space-y-3">
-            {Object.entries(salesByPayment).map(([method, count]) => {
-              const percentage = totalSales > 0 ? (count / totalSales * 100).toFixed(1) : '0';
-              const methodLabels = {
-                'dinheiro': 'Dinheiro',
-                'cartao': 'Cartão',
-                'pix': 'PIX'
-              };
-              
-              return (
-                <div key={method} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Badge variant="secondary">
-                      {methodLabels[method as keyof typeof methodLabels] || method}
-                    </Badge>
-                    <span className="font-medium">{count} vendas</span>
-                  </div>
-                  <span className="text-sm text-muted-foreground">{percentage}%</span>
-                </div>
-              );
-            })}
-            {Object.keys(salesByPayment).length === 0 && (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhuma venda no período selecionado
-              </p>
-            )}
-          </div>
-        </Card>
+          {sale.status && (
+            <Badge className="capitalize px-3 py-1 text-xs">{sale.status}</Badge>
+          )}
+        </div>
+      ))
+    }
 
-        {/* Stock Movements */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold mb-4">Movimentação de Estoque</h3>
-          <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent relative">
-            {stockMovements.length > 0 ? (
-              stockMovements.map((movement) => (
-                <div
-                  key={movement.id}
-                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">{movement.productName}</span>
-                    <span className="text-sm text-muted-foreground"></span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <Badge
-                      variant={
-                        movement.type === 'entrada'
-                          ? 'default'
-                          : movement.type === 'saida'
-                          ? 'destructive'
-                          : 'secondary'
-                      }
-                    >
-                      {movement.type === 'entrada'
-                        ? 'Entrada'
-                        : movement.type === 'saida'
-                        ? 'Saída'
-                        : 'Ajuste'}
-                    </Badge>
-                    <span className="font-medium">{movement.quantity} unidades</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhuma movimentação no período selecionado
-              </p>
-            )}
+    {combinedSales.filter(sale => 
+      (selectedWaiter === 'all' || sale.waiter === selectedWaiter) &&
+      (selectedTable === 'all' || sale.table === selectedTable)
+    ).length === 0 && (
+      <p className="text-center text-muted-foreground py-12 text-sm">
+        Nenhuma venda no período selecionado
+      </p>
+    )}
+  </div>
+</Card>
 
-            {/* Sombra sutil no final da lista */}
-            {stockMovements.length > 4 && (
-              <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-card to-transparent pointer-events-none"></div>
-            )}
-          </div>
-        </Card>
+        
+        <SalesByWaiterCard 
+          sales={sales} 
+          orders={orders} 
+        />
 
+        <TopProductsCard sales={mappedSales} orders={orders} />
 
-        {/* Análise por Vendedor */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold mb-4">Análise por Vendedor</h3>
-          <div className="space-y-3">
-            {Object.entries(salesByUser).map(([userName, data]) => (
-              <div key={userName} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <UserIcon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{userName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {data.totalSales} vendas • {data.salesCount} produtos
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium">{formatCurrency(data.totalRevenue)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Média: {formatCurrency(data.totalRevenue / data.totalSales)}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {Object.keys(salesByUser).length === 0 && (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhuma venda no período selecionado
-              </p>
-            )}
-          </div>
-        </Card>
-
-        {/* Recent Sales */}
-        <Card className="p-4">
-          <h3 className="text-lg font-semibold mb-4">Vendas Recentes</h3>
-          <div className="space-y-3 max-h-80 overflow-y-auto">
-            {sales.slice(0, 10).map((sale) => {
-              const user = users.find(u => u.id === sale.userId);
-              return (
-                <div key={sale.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div>
-                    <p className="font-medium">Venda #{sale.id}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(sale.createdAt).toLocaleString()}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {sale.items.length} {sale.items.length === 1 ? 'item' : 'itens'} • 
-                      Vendedor: {user?.username || 'Desconhecido'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{formatCurrency(sale.total)}</p>
-                    <Badge variant="outline" className="text-xs">
-                      {sale.paymentMethod}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
-            {sales.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">
-                Nenhuma venda no período selecionado
-              </p>
-            )}
-          </div>
-        </Card>
       </div>
     </div>
   );

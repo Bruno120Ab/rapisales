@@ -240,14 +240,20 @@ export const OrderCard = ({
   const handleChangeStatus = (status: Order["status"]) =>
     onUpdate?.({ ...order, status });
 
+  // const handleCloseOrder = () => {
+  //   if (order.status !== "served") return;
+
+  //   onUpdate?.({ ...order, status: "paid" });
+  //   releaseTable?.(order.tableId.toString());
+  //   setShowCloseModal(false);
+  // };
   const handleCloseOrder = () => {
     if (order.status !== "served") return;
 
-    onUpdate?.({ ...order, status: "paid" });
+    onUpdate?.({ ...order, status: "paid", paymentMethod });
     releaseTable?.(order.tableId.toString());
     setShowCloseModal(false);
   };
-
   const handleDelete = () => onDelete?.(order.id);
 
   return (

@@ -14,6 +14,7 @@ import { OrderCard } from "@/app/OrderCard";
 import { Input } from "@/components/ui/input";
 import { database } from "@/app/database";
 import { useAuth } from "@/contexts/AuthContext";
+import { EditOrderDialog } from "@/app/EditOrderDialog";
 
 // importa os hooks e componentes da sua base
 
@@ -369,6 +370,7 @@ export const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [view, setView] = useState<View>("map");
+const [editingOrder, setEditingOrder] = useState<any | null>(null);
 
   const { isInitialized } = useDatabase();
   const { tables, occupyTable, freeTable } = useTables();
@@ -586,6 +588,9 @@ useEffect(() => {
         selectedTable={tables.find((t) => t.id === selectedTable)}
         onCreateOrder={handleCreateOrder}
       />
+
+   
+
 
       <CreateReservationDialog
         open={showCreateReservation}
