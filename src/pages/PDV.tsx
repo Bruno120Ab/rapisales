@@ -114,6 +114,33 @@ const fetchProducts = async (ownerId: string) => {
   }
 };
 
+
+
+  const fetchAllProducts = async () => {
+    try {
+      // setIsLoading(true);
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          image_url,
+          restaurant:restaurants!inner(id, name, delivery_fee, city, status, is_open)
+        `)
+        .eq("restaurant.is_open", true)
+        .limit(12);
+
+      if (error) throw error;
+
+      setProducts(data || []);
+    } catch (error) {
+      console.error("Error fetching all products:", error);
+    } finally {
+      // setIsLoading(false);
+    }
+  };
   // const loadProducts = async () => {
   //   try {
   //   // setIsLoading(true);
@@ -140,7 +167,9 @@ const fetchProducts = async (ownerId: string) => {
   //   // setIsLoading(false);
   // }
   // };
-  const fetchProductsByCity = async (id: string) => {
+ 
+
+   const fetchProductsByCity = async (id: string) => {
     try {
         // setIsLoading(true);
         const { data, error } = await supabase
@@ -168,33 +197,6 @@ const fetchProducts = async (ownerId: string) => {
         // setIsLoading(false);
       }
   };
-
-  const fetchAllProducts = async () => {
-    try {
-      // setIsLoading(true);
-      const { data, error } = await supabase
-        .from("products")
-        .select(`
-          id,
-          name,
-          description,
-          price,
-          image_url,
-          restaurant:restaurants!inner(id, name, delivery_fee, city, status, is_open)
-        `)
-        .eq("restaurant.is_open", true)
-        .limit(12);
-
-      if (error) throw error;
-
-      setProducts(data || []);
-    } catch (error) {
-      console.error("Error fetching all products:", error);
-    } finally {
-      // setIsLoading(false);
-    }
-  };
-
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.barcode?.includes(searchTerm) ||

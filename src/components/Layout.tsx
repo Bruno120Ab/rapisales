@@ -44,38 +44,37 @@ const Layout = ({ children, onLogout }: LayoutProps) => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card border-b border-border">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center space-x-4">
-     <div className="flex items-center space-x-4">
-  <img
-    src="src/assets/logo.png"
-    alt="Boutique da Thaina"
-    className="h-16 w-16 rounded-full object-cover"
-  />
-  <h1 className="text-3xl font-bold text-foreground">
-    {user?.user_metadata?.restaurantData?.name}
-  </h1>
-</div>
+  <div className="flex items-center justify-between px-6 py-4">
+    {/* Logo em texto */}
+    <div className="flex items-center space-x-4">
+      <h1 className="text-3xl font-bold text-foreground flex items-center gap-1">
+        <span className="text-blue-500"></span>Rapi
+        <span className="text-blue-500">Sales</span> 
+        <span className="ml-2 text-base font-normal text-muted-foreground">
+          {user?.user_metadata?.restaurantData?.name}
+        </span>
+      </h1>
+    </div>
 
+    {/* Informações do usuário */}
+    <div className="flex items-center space-x-4">
+      <div className="text-sm text-muted-foreground">
+        Usuário: <span className="font-medium">{profile?.name}</span>
+        {currentUser?.role === 'admin' && <span className="text-primary"> (Admin)</span>}
+      </div>
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        onClick={onLogout}
+        className="text-muted-foreground hover:text-foreground"
+      >
+        <LogOut className="h-4 w-4 mr-2" />
+        Sair
+      </Button>
+    </div>
+  </div>
+</header>
 
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm text-muted-foreground">
-              Usuário: <span className="font-medium">{profile?.name}</span>
-              {currentUser?.role === 'admin' && <span className="text-primary"> (Admin)</span>}
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={onLogout}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sair
-            </Button>
-          </div>
-        </div>
-      </header>
 
       <div className="flex">
         {/* Sidebar */}

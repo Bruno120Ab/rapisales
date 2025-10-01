@@ -351,32 +351,100 @@ export const OrderCard = ({
       </Card>
 
       {/* MODAL DE DETALHES */}
-      {showDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background p-6 rounded-lg max-w-md w-full relative">
-            <h3 className="text-lg font-bold mb-4">{order.id} - Detalhes</h3>
-            <p>
-              <strong>Mesa:</strong> {order.table}
-            </p>
-            <p>
-              <strong>Cliente:</strong> {order.customer}
-            </p>
-            <OrderItemsMenu items={order.items} />
-            <p>
-              <strong>Total:</strong> R$ {order.total.toFixed(2)}
-            </p>
-            <p>
-              <strong>Status:</strong> {statusConfig.label}
-            </p>
-            <p>
-              <strong>Garçom:</strong> {order.waiter}
-            </p>
-            <Button className="mt-4" onClick={() => setShowDetails(false)}>
-              Fechar
-            </Button>
-          </div>
+{showDetails && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div className="bg-background p-6 rounded-xl shadow-lg max-w-lg w-full relative animate-in fade-in zoom-in-95">
+      <h3 className="text-xl font-bold mb-4 border-b pb-2">
+        Pedido #{order.id}
+      </h3>
+
+      <div className="space-y-3 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Mesa:</span>
+          <span className="font-medium">{order.table}</span>
         </div>
-      )}
+
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Cliente:</span>
+          <span className="font-medium">{order.customer}</span>
+        </div>
+
+        <div>
+          <span className="text-muted-foreground block mb-1">Itens:</span>
+          <OrderItemsMenu items={order.items} />
+          <span className="text-xs text-muted-foreground">
+             {order.items.length}  tipos ({order.items.reduce((acc, i) => acc + i.quantity, 0)} unidades)
+          </span>
+        </div>
+
+        <div className="flex justify-between border-t pt-2">
+          <span className="text-muted-foreground">Total:</span>
+          <span className="font-bold text-blue-600">
+            R$ {order.total.toFixed(2)}
+          </span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Status:</span>
+          <span
+            className={`font-medium px-2 py-0.5 rounded-md text-xs ${
+              statusConfig.value === "done"
+                ? "bg-green-100 text-green-700"
+                : statusConfig.value === "pending"
+                ? "bg-yellow-100 text-yellow-700"
+                : "bg-gray-100 text-gray-700"
+            }`}
+          >
+            {statusConfig.label}
+          </span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Garçom:</span>
+          <span className="font-medium">{order.waiter}</span>
+        </div>
+
+        {/* --- Novas informações --- */}
+        {/* <div className="flex justify-between">
+          <span className="text-muted-foreground">Criado em:</span>
+          <span className="font-medium">
+            {new Date(order.createdAt).toLocaleString("pt-BR")}
+          </span>
+        </div> */}
+
+        {/* {order.completedAt && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Concluído em:</span>
+            <span className="font-medium">
+              {new Date(order.completedAt).toLocaleString("pt-BR")}
+            </span>
+          </div>
+        )} */}
+
+        {order.paymentMethod && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Pagamento:</span>
+            <span className="font-medium">{order.paymentMethod}</span>
+          </div>
+        )}
+
+        {order.notes && (
+          <div>
+            <span className="text-muted-foreground block mb-1">Observações:</span>
+            <p className="text-sm italic text-foreground">{order.notes}</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end mt-6 border-t pt-4">
+        <Button variant="outline" onClick={() => setShowDetails(false)}>
+          Fechar
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* MODAL DE FECHAMENTO */}
       {showCloseModal && (

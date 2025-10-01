@@ -22,6 +22,8 @@ import { TotalSalesCard } from '@/components/TotalSales';
 import { ProductsSoldCard } from '@/components/ProuctsSales';
 import { TotalRevenueCard } from '@/components/TotalRevenue';
 import { AverageTicketCard } from '@/components/AverageTicket';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const Relatorios = () => {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -31,7 +33,10 @@ const Relatorios = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<any[]>([]);
 
+    const { user, profile, isLoading } = useAuth();
+  
 
 
   const [tables, setTables] = useState<Table[]>([]);
@@ -45,7 +50,82 @@ const [selectedWaiter, setSelectedWaiter] = useState('all');
 const [selectedTable, setSelectedTable] = useState('all');
 const [selectedPayment, setSelectedPayment] = useState('all');
 
+  const city = profile?.id
 
+const fetchProducts = async (ownerId: string) => {
+  try {
+    // 1️⃣ Buscar o restaurante do dono
+    const { data: restaurant, error: restaurantError } = await supabase
+      .from('restaurants')
+      .select('*')
+      .eq('owner_id', ownerId)
+      .maybeSingle();
+
+    if (restaurantError) throw restaurantError;
+
+    if (!restaurant) {
+      console.warn('Nenhum restaurante encontrado para este dono.');
+      setProducts([]);
+      return;
+    }
+
+    const restaurantId = restaurant.id;
+
+    // 2️⃣ Buscar produtos do restaurante
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .order('display_order', { ascending: true });
+
+    if (productsError) throw productsError;
+
+    setProducts(productsData || []);
+  } catch (err: any) {
+    console.error('Erro ao buscar produtos:', err.message);
+    setProducts([]);
+  }
+};
+
+
+
+  const fetchAllProducts = async () => {
+    try {
+      // setIsLoading(true);
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          id,
+          name,
+          description,
+          price,
+          image_url,
+          restaurant:restaurants!inner(id, name, delivery_fee, city, status, is_open)
+        `)
+        .eq("restaurant.is_open", true)
+        .limit(12);
+
+      if (error) throw error;
+
+      setProducts(data || []);
+    } catch (error) {
+      console.error("Error fetching all products:", error);
+    } finally {
+      // setIsLoading(false);
+    }
+  };
+
+    console.log(products)
+  useEffect(() => {
+  // Se houver profile, busca por cidade; senão busca todos
+    if (city) {
+      // loadProducts();
+      fetchProducts(city)
+      // fetchProductsByCity(city);
+    } else {
+      fetchAllProducts();
+    }
+}, [profile])
 
 useEffect(() => {
   const loadDatabaseData = async () => {
@@ -379,6 +459,71 @@ console.log(combinedSales)
         </div>
       </Card>
 
+<Card className="p-4">
+  <h3 className="text-base font-semibold mb-3">Lista de Produtos</h3>
+
+  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+    {products.length > 0 ? (
+      products.map((product) => (
+        <div
+          key={product.id}
+          className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card/60 transition-all duration-150"
+        >
+          {/* Imagem */}
+          <div className="w-12 h-12 flex-shrink-0 rounded-md bg-muted overflow-hidden shadow-sm flex items-center justify-center">
+            {product.image_url ? (
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-muted-foreground text-[10px]">Sem imagem</span>
+            )}
+          </div>
+
+          {/* Nome + Categoria */}
+          <div className="flex-1 min-w-0 flex flex-col justify-center">
+            <span className="font-medium text-foreground text-sm truncate">
+              {product.name}
+            </span>
+            {product.category_name && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/20 text-accent mt-1 inline-block">
+                {product.category_name}
+              </span>
+            )}
+          </div>
+
+          {/* Preço + Status */}
+          <div className="flex flex-col items-end justify-center min-w-[70px]">
+            <span className="font-semibold text-blue-600 text-sm">
+              R$ {product.price.toFixed(2)}
+            </span>
+            <Badge
+              variant={product.available ? "success" : "secondary"}
+              className="text-[10px] mt-1"
+            >
+              {product.available ? "Disponível" : "Indisponível"}
+            </Badge>
+          </div>
+
+          {/* Data de criação */}
+          <div className="ml-2 text-right text-[10px] text-muted-foreground min-w-[80px]">
+            <span>  Criado em </span>
+            {new Date(product.created_at).toLocaleDateString("pt-BR")}
+          </div>
+        </div>
+      ))
+    ) : (
+      <p className="text-center text-muted-foreground py-6 text-sm">
+        Nenhum produto cadastrado
+      </p>
+    )}
+  </div>
+</Card>
+        <TopProductsCard sales={mappedSales} orders={orders} />
+
+
         {/* Mesas */}
       <Card className="p-6 bg-background border border-border rounded-xl shadow-sm">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Mesas</h3>
@@ -535,7 +680,6 @@ console.log(combinedSales)
           orders={orders} 
         />
 
-        <TopProductsCard sales={mappedSales} orders={orders} />
 
       </div>
     </div>

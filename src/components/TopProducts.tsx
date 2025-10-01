@@ -52,31 +52,40 @@ export const TopProductsCard: React.FC<TopProductsCardProps> = ({ sales, orders 
   const top10 = topProducts.slice(0, 10);
 
   return (
-    <Card className="p-4">
-      <h3 className="text-lg font-semibold mb-4">Produtos Mais Vendidos</h3>
-      <div className="space-y-3 max-h-72 overflow-y-auto">
-        {top10.length > 0 ? (
-          top10.map((product, index) => (
-            <div
-              key={product.productName}
-              className="flex items-center justify-between p-3 bg-card hover:bg-card/80 rounded-lg shadow-sm transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <Badge variant="outline">{index + 1}º</Badge>
-                <div>
-                  <p className="font-medium text-foreground">{product.productName}</p>
-                  <p className="text-sm text-muted-foreground">{product.quantity} unidades vendidas</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-foreground">{formatCurrency(product.revenue)}</p>
-              </div>
+  <Card className="p-4">
+  <h3 className="text-lg font-semibold mb-3">Produtos Mais Vendidos</h3>
+
+  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+    {top10.length > 0 ? (
+      top10.map((product, index) => (
+        <div
+          key={product.productName}
+          className="flex items-center justify-between p-3 bg-card rounded-lg border border-border transition-all duration-150"
+        >
+          {/* Ranking + Nome */}
+          <div className="flex items-center space-x-3 min-w-0">
+            <Badge variant="outline" className="min-w-[28px] text-center">{index + 1}º</Badge>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-foreground truncate">{product.productName}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {product.quantity} unidades vendidas
+              </p>
             </div>
-          ))
-        ) : (
-          <p className="text-center text-muted-foreground py-8">Nenhuma venda no período selecionado</p>
-        )}
-      </div>
-    </Card>
+          </div>
+
+          {/* Receita */}
+          <div className="text-right min-w-[70px]">
+            <p className="font-semibold text-blue-600 text-sm">{formatCurrency(product.revenue)}</p>
+          </div>
+        </div>
+      ))
+    ) : (
+      <p className="text-center text-muted-foreground py-6 text-sm">
+        Nenhuma venda no período selecionado
+      </p>
+    )}
+  </div>
+</Card>
+
   );
 };
