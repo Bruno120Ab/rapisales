@@ -35,59 +35,54 @@ const Relatorios = () => {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
 
-    const { user, profile, isLoading } = useAuth();
-  
-
+  const { user, profile, isLoading } = useAuth();
 
   const [tables, setTables] = useState<Table[]>([]);
-const [orders, setOrders] = useState<Order[]>([]);
-const [reservations, setReservations] = useState<Reservation[]>([]);
-const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-const [stats, setStats] = useState<Stats[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [stats, setStats] = useState<Stats[]>([]);
 
-
-const [selectedWaiter, setSelectedWaiter] = useState('all');
-const [selectedTable, setSelectedTable] = useState('all');
-const [selectedPayment, setSelectedPayment] = useState('all');
+  const [selectedWaiter, setSelectedWaiter] = useState('all');
+  const [selectedTable, setSelectedTable] = useState('all');
+  const [selectedPayment, setSelectedPayment] = useState('all');
 
   const city = profile?.id
 
-const fetchProducts = async (ownerId: string) => {
-  try {
-    // 1️⃣ Buscar o restaurante do dono
-    const { data: restaurant, error: restaurantError } = await supabase
-      .from('restaurants')
-      .select('*')
-      .eq('owner_id', ownerId)
-      .maybeSingle();
+  const fetchProducts = async (ownerId: string) => {
+    try {
+      // 1️⃣ Buscar o restaurante do dono
+      const { data: restaurant, error: restaurantError } = await supabase
+        .from('restaurants')
+        .select('*')
+        .eq('owner_id', ownerId)
+        .maybeSingle();
 
-    if (restaurantError) throw restaurantError;
+      if (restaurantError) throw restaurantError;
 
-    if (!restaurant) {
-      console.warn('Nenhum restaurante encontrado para este dono.');
+      if (!restaurant) {
+        console.warn('Nenhum restaurante encontrado para este dono.');
+        setProducts([]);
+        return;
+      }
+
+      const restaurantId = restaurant.id;
+
+      // 2️⃣ Buscar produtos do restaurante
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('restaurant_id', restaurantId)
+        .order('display_order', { ascending: true });
+
+      if (productsError) throw productsError;
+
+      setProducts(productsData || []);
+    } catch (err: any) {
+      console.error('Erro ao buscar produtos:', err.message);
       setProducts([]);
-      return;
     }
-
-    const restaurantId = restaurant.id;
-
-    // 2️⃣ Buscar produtos do restaurante
-    const { data: productsData, error: productsError } = await supabase
-      .from('products')
-      .select('*')
-      .eq('restaurant_id', restaurantId)
-      .order('display_order', { ascending: true });
-
-    if (productsError) throw productsError;
-
-    setProducts(productsData || []);
-  } catch (err: any) {
-    console.error('Erro ao buscar produtos:', err.message);
-    setProducts([]);
-  }
-};
-
-
+  };
 
   const fetchAllProducts = async () => {
     try {
@@ -115,7 +110,6 @@ const fetchProducts = async (ownerId: string) => {
     }
   };
 
-    console.log(products)
   useEffect(() => {
   // Se houver profile, busca por cidade; senão busca todos
     if (city) {
@@ -125,70 +119,74 @@ const fetchProducts = async (ownerId: string) => {
     } else {
       fetchAllProducts();
     }
-}, [profile])
-
-useEffect(() => {
-  const loadDatabaseData = async () => {
-    setLoading(true);
-    try {
-      const [tablesData, ordersData, reservationsData, menuData, statsData] = await Promise.all([
-        database.getTables(),
-        database.getOrders(),
-        database.getReservations(),
-        database.getMenuItems(),
-        database.getStats(),
-      ]);
-
-      setTables(tablesData);
-      setOrders(ordersData);
-      setReservations(reservationsData);
-      setMenuItems(menuData);
-      setStats(statsData);
-    } catch (error) {
-      console.error("Erro ao carregar dados do DB:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  loadDatabaseData();
-}, []);
+  }, [profile])
 
   useEffect(() => {
-    loadData();
-  }, [period, selectedUserId]);
-
-  const loadData = async () => {
-    try {
+    const loadDatabaseData = async () => {
       setLoading(true);
-      const [allSales, allMovements, allUsers] = await Promise.all([
-        db.sales.toArray(),
-        db.stockMovements.toArray(),
-        db.users.toArray()
-      ]);
-      
-      let filteredSales = filterByPeriod(allSales);
-      const filteredMovements = filterByPeriod(allMovements);
-      
-      // Filtrar por vendedor
-      if (selectedUserId !== 'all') {
-        filteredSales = filteredSales.filter(sale => sale.userId === parseInt(selectedUserId));
+      try {
+        const [tablesData, ordersData, reservationsData, menuData, statsData] = await Promise.all([
+          database.getTables(),
+          database.getOrders(),
+          database.getReservations(),
+          database.getMenuItems(),
+          database.getStats(),
+        ]);
+
+        setTables(tablesData);
+        setOrders(ordersData);
+        setReservations(reservationsData);
+        setMenuItems(menuData);
+        setStats(statsData);
+      } catch (error) {
+        console.error("Erro ao carregar dados do DB:", error);
+      } finally {
+        setLoading(false);
       }
-      
-      setSales(filteredSales);
-      setStockMovements(filteredMovements);
-      setUsers(allUsers);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os relatórios.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    };
+
+    loadDatabaseData();
+  }, []);
+
+useEffect(() => {
+  loadData();
+}, [period, selectedUserId]);
+
+const loadData = async () => {
+  try {
+    setLoading(true);
+    const [allSales, allMovements, allUsers, allOrders] = await Promise.all([
+      db.sales.toArray(),
+      db.stockMovements.toArray(),
+      db.users.toArray(),
+      database.getOrders() // 🔹 buscar orders também
+    ]);
+
+    let filteredSales = filterByPeriod(allSales);
+    let filteredOrders = filterByPeriod(allOrders);
+    const filteredMovements = filterByPeriod(allMovements);
+
+    // Filtrar por vendedor
+    if (selectedUserId !== 'all') {
+      filteredSales = filteredSales.filter(sale => sale.userId === parseInt(selectedUserId));
+      filteredOrders = filteredOrders.filter(order => order.waiterId === parseInt(selectedUserId));
     }
-  };
+
+    setSales(filteredSales);
+    setOrders(filteredOrders);
+    setStockMovements(filteredMovements);
+    setUsers(allUsers);
+  } catch (error) {
+    console.error('Erro ao carregar dados:', error);
+    toast({
+      title: "Erro",
+      description: "Não foi possível carregar os relatórios.",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filterByPeriod = (data: any[]) => {
     const now = new Date();
@@ -214,6 +212,7 @@ useEffect(() => {
     });
   };
 
+  
   const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
   const totalSales = sales.length;
   const averageTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
@@ -223,6 +222,7 @@ useEffect(() => {
     return acc;
   }, {} as Record<string, number>);
 
+  
   const topProducts = sales
     .flatMap(sale => sale.items)
     .reduce((acc, item) => {
@@ -352,11 +352,10 @@ const combinedSales = useMemo(() => {
   const ourTables = Array.from(new Set(combinedSales.map(s => s.table))).filter(Boolean);
   const ourPayments = Array.from(new Set(combinedSales.map(s => s.paymentMethod))).filter(Boolean);
 
-console.log(combinedSales)
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-foreground">Relatórios do RapiSales - PDV </h1>
+        <h1 className="text-3xl font-bold text-foreground">Relatórios do RapiSales</h1>
         <div className="flex items-center space-x-4">
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger className="w-48">
@@ -394,8 +393,7 @@ console.log(combinedSales)
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
 
         {/* Receita Total */}
-        <TotalRevenueCard sales={sales} orders={orders} />
-
+      <TotalRevenueCard sales={sales} orders={orders} />
 
         {/* Total de Vendas */}
       <TotalSalesCard sales={sales} orders={orders} />
@@ -459,72 +457,72 @@ console.log(combinedSales)
         </div>
       </Card>
 
-<Card className="p-4">
-  <h3 className="text-base font-semibold mb-3">Lista de Produtos</h3>
+      <Card className="p-4">
+        <h3 className="text-base font-semibold mb-3">Lista de Produtos</h3>
 
-  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-    {products.length > 0 ? (
-      products.map((product) => (
-        <div
-          key={product.id}
-          className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card/60 transition-all duration-150"
-        >
-          {/* Imagem */}
-          <div className="w-12 h-12 flex-shrink-0 rounded-md bg-muted overflow-hidden shadow-sm flex items-center justify-center">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-muted-foreground text-[10px]">Sem imagem</span>
-            )}
-          </div>
+        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+          {products.length > 0 ? (
+            products.map((product) => (
+              <div
+                key={product.id}
+                className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card/60 transition-all duration-150"
+              >
+                {/* Imagem */}
+                <div className="w-12 h-12 flex-shrink-0 rounded-md bg-muted overflow-hidden shadow-sm flex items-center justify-center">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground text-[10px]">Sem imagem</span>
+                  )}
+                </div>
 
-          {/* Nome + Categoria */}
-          <div className="flex-1 min-w-0 flex flex-col justify-center">
-            <span className="font-medium text-foreground text-sm truncate">
-              {product.name}
-            </span>
-            {product.category_name && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/20 text-accent mt-1 inline-block">
-                {product.category_name}
-              </span>
-            )}
-          </div>
+                {/* Nome + Categoria */}
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                  <span className="font-medium text-foreground text-sm truncate">
+                    {product.name}
+                  </span>
+                  {product.category_name && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/20 text-accent mt-1 inline-block">
+                      {product.category_name}
+                    </span>
+                  )}
+                </div>
 
-          {/* Preço + Status */}
-          <div className="flex flex-col items-end justify-center min-w-[70px]">
-            <span className="font-semibold text-blue-600 text-sm">
-              R$ {product.price.toFixed(2)}
-            </span>
-            <Badge
-              variant={product.available ? "success" : "secondary"}
-              className="text-[10px] mt-1"
-            >
-              {product.available ? "Disponível" : "Indisponível"}
-            </Badge>
-          </div>
+                {/* Preço + Status */}
+                <div className="flex flex-col items-end justify-center min-w-[70px]">
+                  <span className="font-semibold text-blue-600 text-sm">
+                    R$ {product.price.toFixed(2)}
+                  </span>
+                  <Badge
+                    variant={product.available ? "success" : "secondary"}
+                    className="text-[10px] mt-1"
+                  >
+                    {product.available ? "Disponível" : "Indisponível"}
+                  </Badge>
+                </div>
 
-          {/* Data de criação */}
-          <div className="ml-2 text-right text-[10px] text-muted-foreground min-w-[80px]">
-            <span>  Criado em </span>
-            {new Date(product.created_at).toLocaleDateString("pt-BR")}
-          </div>
+                {/* Data de criação */}
+                <div className="ml-2 text-right text-[10px] text-muted-foreground min-w-[80px]">
+                  <span>  Criado em </span>
+                  {new Date(product.created_at).toLocaleDateString("pt-BR")}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-muted-foreground py-6 text-sm">
+              Nenhum produto cadastrado
+            </p>
+          )}
         </div>
-      ))
-    ) : (
-      <p className="text-center text-muted-foreground py-6 text-sm">
-        Nenhum produto cadastrado
-      </p>
-    )}
-  </div>
-</Card>
-        <TopProductsCard sales={mappedSales} orders={orders} />
+      </Card>
 
+      <TopProductsCard sales={mappedSales} orders={orders} />
 
-        {/* Mesas */}
+      {/* Mesas */}
       <Card className="p-6 bg-background border border-border rounded-xl shadow-sm">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Mesas</h3>
 
@@ -555,14 +553,6 @@ console.log(combinedSales)
           )}
         </div>
       </Card>
-
-
-        {/* Reservas */}
-      
-
-        {/* Produtos do Menu */}
-
-
 
       </div>
 
@@ -596,18 +586,7 @@ console.log(combinedSales)
       ))}
     </select>
 
-    {/* <select
-    className="border rounded px-3 py-1 text-sm"
-    value={selectedPayment}
-    onChange={(e) => setSelectedTable(e.target.value)}
-  >
-  <option value="all">Pagamento</option>
-  {ourPayments.map((t) => (
-    <option key={t} value={t}> {t}</option>
-  ))}
-</select> */}
-
-  <select
+    <select
       className="border rounded px-3 py-1 text-sm"
       value={selectedPayment}
       onChange={e => setSelectedPayment(e.target.value)}
